@@ -31,3 +31,28 @@
     quê?
   - Na opção B, se o usuário marca `hasVehicle = false`, o payload deveria
     avisar o servidor que o `vehicleType` salvo ficou irrelevante?
+
+### 2026-09-23 — value, parse e format (campos de texto)
+- **Contexto**: design doc 0005, que faz o `TextControllerBinding` seguir
+  valores vindos de fora (undo, reset, estado restaurado).
+- **Conceitos**:
+  - Um campo de texto vive em dois mundos: o texto (String, pode estar
+    incompleto: `-`, `1.`) e o valor (tipado, ou `null`).
+  - `parse` (texto → valor) é muitos-para-um: `1.5`, `1.50` e `1,5` viram
+    `1.5`. `format` (valor → texto) escolhe um representante.
+  - Por isso `parse(format(v)) == v` vale (invariante para quem escreve
+    builders), mas `format(parse(t)) == t` não vale.
+  - A regra do 0005 mantém o texto se ele significa o valor, ou se já é a
+    forma canônica do valor; senão, o valor veio de fora.
+  - Analogia: o `ControlValueAccessor` do Angular (`writeValue` = format,
+    `registerOnChange` = parse).
+- **No código**: `packages/formwork/lib/src/flutter/text_controller_binding.dart`,
+  o builder `_text` em `packages/formwork_material/lib/formwork_material.dart`
+  e `docs/design/0005-text-follows-snapshot.md`.
+- **Lacunas**: sem checkpoint: mudou de assunto antes de responder.
+  Revisar depois.
+- **Para revisar**:
+  - Campo de número com o texto `2.0`; um undo põe o valor `2` (int). O que
+    aparece na tela, e por quê?
+  - Um campo de data com `parse` para `dd/MM/yyyy` e `format` padrão
+    (`toString`): o que dá errado, e quando o usuário percebe?

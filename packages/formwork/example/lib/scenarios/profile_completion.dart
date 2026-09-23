@@ -63,6 +63,34 @@ const _catalogJson = <String, dynamic>{
       'visibleWhen': {'field': 'maritalStatus', 'equals': 'married'},
     },
     {
+      'key': 'hasVehicle',
+      'type': 'dropdown',
+      'label': 'Do you have a vehicle?',
+      'required': true,
+      'options': [
+        {'value': 'yes', 'label': 'Yes'},
+        {'value': 'no', 'label': 'No'},
+      ],
+    },
+    {
+      'key': 'vehicleType',
+      'type': 'dropdown',
+      'label': 'Vehicle type',
+      'required': true,
+      'options': [
+        {'value': 'car', 'label': 'Car'},
+        {'value': 'motorbike', 'label': 'Motorbike'},
+      ],
+      'visibleWhen': {'field': 'hasVehicle', 'equals': 'yes'},
+    },
+    {
+      'key': 'licensePlate',
+      'type': 'text',
+      'label': 'License plate',
+      'required': true,
+      'visibleWhen': {'field': 'vehicleType', 'equals': 'car'},
+    },
+    {
       'key': 'nickname',
       'type': 'text',
       'label': 'Nickname (optional)',
@@ -84,6 +112,7 @@ const _presets = <String, Map<String, Object?>>{
     'email': 'maria@example.com',
     'taxId': '12345678909',
     'maritalStatus': 'married',
+    'hasVehicle': 'no',
     'acceptedTerms': false,
   },
   'Single, no income': {
@@ -91,6 +120,7 @@ const _presets = <String, Map<String, Object?>>{
     'email': 'joao@example.com',
     'taxId': '98765432100',
     'maritalStatus': 'single',
+    'hasVehicle': 'no',
     'acceptedTerms': true,
   },
   'Invalid stored data': {
@@ -99,6 +129,19 @@ const _presets = <String, Map<String, Object?>>{
     'taxId': '123',
     'monthlyIncome': 500,
     'maritalStatus': 'single',
+    'hasVehicle': 'no',
+    'acceptedTerms': true,
+  },
+  // Last year: a car. This year hasVehicle was cleared for re-confirmation
+  // and the plate is new in the catalog. Vehicle type sits between two
+  // missing fields, so it is asked too, prefilled (design doc 0003).
+  'Renewal': {
+    'fullName': 'João Souza',
+    'email': 'joao@example.com',
+    'taxId': '98765432100',
+    'monthlyIncome': 4000,
+    'maritalStatus': 'single',
+    'vehicleType': 'car',
     'acceptedTerms': true,
   },
   'Complete': {
@@ -107,6 +150,7 @@ const _presets = <String, Map<String, Object?>>{
     'taxId': '11122233344',
     'monthlyIncome': 5000,
     'maritalStatus': 'single',
+    'hasVehicle': 'no',
     'acceptedTerms': true,
   },
 };
@@ -121,8 +165,44 @@ ValidatorRegistry _validators() => ValidatorRegistry()
         : spec['message'] as String? ?? 'Must have $length digits';
   });
 
-/// Progressive profiling: the same catalog, narrowed by `missingFields` to
-/// what each user still has to answer.
+/// How the form treats what the user already answered (design doc 0003).
+enum _Mode {
+  /// `missingFields`: only the questions still to be answered.
+  onlyMissing('Only missing'),
+
+  /// `missingKeys`: the whole form, missing fields highlighted.
+  highlightMissing('Highlight missing');
+
+  const _Mode(this.label);
+  final String label;
+}
+
+/// Wraps the Material builders so the fields in [missing] stand out. The
+/// set describes the stored data, so it is fixed for the session.
+FieldRegistry _highlighting(Set<String> missing) => FieldRegistry()
+  ..registerAll({
+    for (final MapEntry(key: type, value: build)
+        in materialFieldBuilders.entries)
+      type: (context, field, ctx) {
+        final child = build(context, field, ctx);
+        if (!missing.contains(field.key)) return child;
+        return Container(
+          padding: const EdgeInsets.only(left: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 3,
+              ),
+            ),
+          ),
+          child: child,
+        );
+      },
+  });
+
+/// Progressive profiling: the same catalog, either narrowed to what each
+/// user still has to answer, or shown whole with that highlighted.
 class ProfileCompletionScenario extends StatefulWidget {
   const ProfileCompletionScenario({super.key});
 
@@ -133,22 +213,38 @@ class ProfileCompletionScenario extends StatefulWidget {
 
 class _ProfileCompletionScenarioState extends State<ProfileCompletionScenario> {
   String preset = _presets.keys.elementAt(1);
+  _Mode mode = _Mode.onlyMissing;
 
   @override
   Widget build(BuildContext context) => _ProfileForm(
-        // A new key per preset: a fresh controller for a different user.
-        key: ValueKey(preset),
+        // A new key per preset and mode: a fresh controller for each.
+        key: ValueKey((preset, mode)),
         userData: _presets[preset]!,
-        presetPicker: Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        mode: mode,
+        pickers: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final name in _presets.keys)
-              ChoiceChip(
-                label: Text(name),
-                selected: name == preset,
-                onSelected: (_) => setState(() => preset = name),
-              ),
+            SegmentedButton<_Mode>(
+              segments: [
+                for (final m in _Mode.values)
+                  ButtonSegment(value: m, label: Text(m.label)),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) => setState(() => mode = s.single),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final name in _presets.keys)
+                  ChoiceChip(
+                    label: Text(name),
+                    selected: name == preset,
+                    onSelected: (_) => setState(() => preset = name),
+                  ),
+              ],
+            ),
           ],
         ),
       );
@@ -158,18 +254,20 @@ class _ProfileForm extends StatefulWidget {
   const _ProfileForm({
     super.key,
     required this.userData,
-    required this.presetPicker,
+    required this.mode,
+    required this.pickers,
   });
 
   final Map<String, Object?> userData;
-  final Widget presetPicker;
+  final _Mode mode;
+  final Widget pickers;
 
   @override
   State<_ProfileForm> createState() => _ProfileFormState();
 }
 
 class _ProfileFormState extends State<_ProfileForm> {
-  final registry = materialFieldRegistry();
+  late final FieldRegistry registry;
   late final DynamicFormController? controller;
   bool saving = false;
 
@@ -179,15 +277,26 @@ class _ProfileFormState extends State<_ProfileForm> {
     final validators = _validators();
     final catalog = FormConfig.fromMap(
       _catalogJson,
-      supportedTypes: registry.types,
+      supportedTypes: materialFieldRegistry().types,
     );
-    final pending =
-        missingFields(catalog, widget.userData, validators: validators);
 
-    controller = pending.fields.isEmpty
+    final FormConfig form;
+    switch (widget.mode) {
+      case _Mode.onlyMissing:
+        registry = materialFieldRegistry();
+        form = missingFields(catalog, widget.userData, validators: validators);
+      case _Mode.highlightMissing:
+        registry = _highlighting(
+          missingKeys(catalog, widget.userData, validators: validators),
+        );
+        form = catalog;
+    }
+
+    controller = form.fields.isEmpty
         ? null
         : DynamicFormController(
-            FormEngine(config: pending, validators: validators),
+            FormEngine(config: form, validators: validators),
+            // Prefills known answers, including a kept middle link.
             initialData: widget.userData,
           );
   }
@@ -215,14 +324,19 @@ class _ProfileFormState extends State<_ProfileForm> {
     return ScenarioPage(
       title: 'Profile completion',
       whatToTry: const [
-        'Switch presets: each user is asked only for what is missing.',
+        'Only missing: switch presets; each user is asked only for what is '
+            'missing. The optional nickname is never asked.',
         '"Invalid stored data" asks again for filled but invalid fields, '
             'prefilled with the stored value.',
-        'The optional nickname is never asked.',
-        'Save: the payload has only the asked fields; the fields are '
+        '"Renewal": Vehicle type is known but sits between two missing '
+            'fields, so it is asked too, prefilled with Car. Answer No: the '
+            'type and the plate disappear, and Save works.',
+        'Highlight missing: the whole form, prefilled; a bar marks what is '
+            'missing.',
+        'Save: the payload has only the fields on screen; the fields are '
             'disabled while saving.',
       ],
-      header: widget.presetPicker,
+      header: widget.pickers,
       snapshot: controller,
       form: controller == null
           ? const Padding(

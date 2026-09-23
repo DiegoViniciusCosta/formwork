@@ -83,5 +83,5 @@ Examples of the filter applied:
 | Ready-made grid layouts          | Only a layout builder hook enters the core         |
 | Material widgets                 | Satellite package: would violate 1                 |
 | Form testing utilities           | Satellite package                                  |
-| Show only missing fields         | Recipe built on the engine                         |
+| Show only missing fields         | Recipe built on the engine's public API (`missingKeys`, `missingFields`) |
 | Theming, networking, file upload | Out                                                |

@@ -1,6 +1,6 @@
 # 0003: Missing data: what is missing, and whether to hide the rest
 
-Status: **draft**
+Status: **accepted** (2026-09-23)
 
 ## Problem
 
@@ -72,8 +72,8 @@ the engine. This doc keeps that:
 - neither is a member of `FormEngine` or `FormSnapshot`;
 - the engine never learns that a form was narrowed.
 
-Proposed wording for that PRINCIPLES.md row: "Recipe built on the
-engine's public API (`missingKeys`, `missingFields`)". A human decides.
+That PRINCIPLES.md row now reads: "Recipe built on the engine's public
+API (`missingKeys`, `missingFields`)", accepted with this doc.
 
 ### Two functions
 

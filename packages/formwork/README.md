@@ -28,39 +28,62 @@ final registry = materialFieldRegistry(); // from formwork_material
 final validators = ValidatorRegistry();
 
 final catalog = FormConfig.fromMap(json, supportedTypes: registry.types);
-final pending = missingFields(catalog, userData, validators: validators);
+final controller = DynamicFormController(
+  FormEngine(config: catalog, validators: validators),
+  initialData: userData, // what you already know, prefilled
+);
 
-if (pending.fields.isNotEmpty) {
-  final controller = DynamicFormController(
-    FormEngine(config: pending, validators: validators),
-    initialData: userData,
-  );
+// In your widget tree:
+DynamicForm(controller: controller, registry: registry);
 
-  // In your widget tree:
-  DynamicForm(controller: controller, registry: registry);
-
-  // In your call to action:
-  final payload = controller.submit(); // null when invalid
-  if (payload != null) await api.updateProfile(payload);
-}
+// In your call to action:
+final payload = controller.submit(); // null when invalid
+if (payload != null) await api.updateProfile(payload);
 ```
 
-`initialData` feeds visibility rules and prefills invalid values, but only
-the fields of the form end up in the payload, which is ready for a PATCH.
+`initialData` prefills the form and feeds visibility rules, but only the
+fields of the form end up in the payload, which is ready for a PATCH.
 
 See [`example/`](example/lib/main.dart) for a complete app.
 
-## Recipe: ask only for missing data
+## Recipes: missing data
 
-`missingFields` narrows a catalog down to the fields that fail validation
-for a given user, including fields that are filled but invalid, and
-resolves conditional fields against the data you already have:
+Two optional recipes for users you already know something about. Both are
+built on the engine's public API; the engine works the same either way.
+A field is *missing* when its stored value fails the catalog's own rules:
+required and empty, or filled but invalid.
+
+### Ask only what is missing
+
+`missingFields` narrows the catalog to the missing fields:
 
 ```dart
-final pending = missingFields(catalog, userData);
-// catalog: 12 fields. userData: 9 of them valid.
-// pending: the 3 fields left to ask for.
+final form = missingFields(catalog, userData, validators: validators);
+if (form.fields.isNotEmpty) {
+  final controller = DynamicFormController(
+    FormEngine(config: form, validators: validators),
+    initialData: userData, // keep passing it: see below
+  );
+}
 ```
+
+Conditional fields are resolved against the data you already have. When a
+known field sits between two missing ones in a `visibleWhen` chain, it is
+kept, so hiding the top of the chain still hides the bottom. It shows its
+stored value because you pass the same `userData` to the controller.
+
+### Highlight what is missing
+
+`missingKeys` returns the same selection as keys and hides nothing. Show
+the whole form and let your builders mark what is missing:
+
+```dart
+final missing = missingKeys(catalog, userData, validators: validators);
+registry.register('text', (context, field, ctx) =>
+    MyTextField(field, ctx, highlighted: missing.contains(field.key)));
+```
+
+The set describes the stored data, so it is fixed for the session.
 
 ## Catalog format
 

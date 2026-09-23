@@ -28,13 +28,13 @@ faz o script sair com código 1.
 
 ## Próximo: bugs que afetam quem usa a biblioteca
 
-### 4. 🟨 Implementar o 0003 (dados faltantes)
-Corrige o Enviar travado no fluxo `missingFields` (caso do João) e separa
-"o que falta" de "esconder o que está preenchido".
-- **Decisão:** aprovar `docs/design/0003-missing-data.md`.
-- Não quebra a API. Testes primeiro, depois o código, o README e o preset
-  "Renovação" no exemplo.
-- Junto: a linha de "receita" no `PRINCIPLES.md` (texto sugerido no 0003).
+### 4. ✅ 0003 implementado (dados faltantes)
+- `missingKeys` é nova;
+- `missingFields` mantém o elo do meio da cadeia, preenchido;
+- README com o Quick start do formulário completo e duas receitas;
+- linha de receita no `PRINCIPLES.md`;
+- no exemplo, o preset "Renewal" e o seletor "Only missing" / "Highlight
+  missing".
 
 ### 5. 🟨 Campos de texto ignoram valores vindos de fora
 Undo, reset e preencher por código atualizam o estado, mas o `TextField`

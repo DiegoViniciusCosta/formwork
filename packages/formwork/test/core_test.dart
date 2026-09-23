@@ -283,30 +283,6 @@ void main() {
       missingFields(cycle, {});
     });
 
-    test(
-      'a chain stays connected when missingFields drops its middle link',
-      () {
-        final catalog = FormConfig([
-          const FieldConfig(
-            key: 'hasVehicle',
-            type: 'checkbox',
-            label: '',
-            required: true,
-          ),
-          ...chain.fields.skip(1),
-        ]);
-        final userData = {'vehicleType': 'car'};
-        final engine = FormEngine(config: missingFields(catalog, userData));
-
-        var s = engine.initial(userData);
-        s = engine.change(s, 'hasVehicle', false);
-
-        expect(keysOf(FormConfig(s.visibleFields)), ['hasVehicle']);
-      },
-      skip: 'Known limitation: the engine only sees the narrowed form, so '
-          'it cannot follow vehicleType -> hasVehicle.',
-    );
-
     test('missingFields skips a chain whose root is already false', () {
       final pending = missingFields(
         chain,
@@ -336,6 +312,149 @@ void main() {
         'vehicleType',
         'licensePlate',
       ]);
+    });
+  });
+
+  group('missing data (design doc 0003)', () {
+    // hasVehicle -> vehicleType -> licensePlate, with a yes/no root: a
+    // required checkbox would count "no" (false) as empty.
+    final renewal = FormConfig.fromMap({
+      'fields': [
+        {'key': 'hasVehicle', 'type': 'dropdown', 'required': true},
+        {
+          'key': 'vehicleType',
+          'type': 'dropdown',
+          'required': true,
+          'visibleWhen': {'field': 'hasVehicle', 'equals': 'yes'},
+        },
+        {
+          'key': 'licensePlate',
+          'type': 'text',
+          'required': true,
+          'visibleWhen': {'field': 'vehicleType', 'equals': 'car'},
+        },
+      ],
+    });
+    const stored = {'vehicleType': 'car'};
+
+    test('a known field between two missing keys is asked', () {
+      expect(keysOf(missingFields(renewal, stored)), [
+        'hasVehicle',
+        'vehicleType',
+        'licensePlate',
+      ]);
+    });
+
+    test('answering "no" hides the chain and submits', () {
+      final engine = FormEngine(config: missingFields(renewal, stored));
+      var s = engine.initial(stored);
+      s = engine.change(s, 'hasVehicle', 'no');
+
+      expect(keysOf(FormConfig(s.visibleFields)), ['hasVehicle']);
+      expect(engine.submit(s).payload, {'hasVehicle': 'no'});
+    });
+
+    test('a link shows its stored value when it becomes visible', () {
+      final engine = FormEngine(config: missingFields(renewal, stored));
+      final s = engine.change(engine.initial(stored), 'hasVehicle', 'yes');
+
+      expect(keysOf(FormConfig(s.visibleFields)), [
+        'hasVehicle',
+        'vehicleType',
+        'licensePlate',
+      ]);
+      expect(s.values['vehicleType'], 'car');
+    });
+
+    test('missingKeys never contains links', () {
+      expect(missingKeys(renewal, stored), {'hasVehicle', 'licensePlate'});
+    });
+
+    test('missingKeys matches missingFields when there are no links', () {
+      for (final data in <Map<String, Object?>>[
+        {'name': 'Maria'},
+        {'name': 'Maria', 'maritalStatus': 'single'},
+        {'name': 'Maria', 'maritalStatus': 'single', 'email': 'broken'},
+      ]) {
+        expect(
+          missingKeys(catalog, data),
+          keysOf(missingFields(catalog, data)).toSet(),
+          reason: '$data',
+        );
+      }
+    });
+
+    test('a known field with nothing missing above it stays hidden', () {
+      final known = {'hasVehicle': 'yes', 'vehicleType': 'car'};
+      expect(keysOf(missingFields(renewal, known)), ['licensePlate']);
+    });
+
+    test('catalog order does not change the result', () {
+      final reversed = FormConfig(renewal.fields.reversed.toList());
+
+      expect(missingKeys(reversed, stored), missingKeys(renewal, stored));
+      expect(keysOf(missingFields(reversed, stored)), [
+        'licensePlate',
+        'vehicleType',
+        'hasVehicle',
+      ]);
+    });
+
+    test('two consecutive known fields between missing keys are asked', () {
+      final longChain = FormConfig.fromMap({
+        'fields': [
+          {'key': 'a', 'type': 'dropdown', 'required': true},
+          {
+            'key': 'b',
+            'type': 'text',
+            'visibleWhen': {'field': 'a', 'equals': 'yes'},
+          },
+          {
+            'key': 'c',
+            'type': 'text',
+            'visibleWhen': {'field': 'b', 'equals': 'x'},
+          },
+          {
+            'key': 'd',
+            'type': 'text',
+            'required': true,
+            'visibleWhen': {'field': 'c', 'equals': 'y'},
+          },
+        ],
+      });
+
+      expect(
+        keysOf(missingFields(longChain, {'b': 'x', 'c': 'y'})),
+        ['a', 'b', 'c', 'd'],
+      );
+    });
+
+    test('a cycle among known ancestors does not hang', () {
+      // a (missing) reads b; b and c are known and read each other.
+      final cycle = FormConfig.fromMap({
+        'fields': [
+          {
+            'key': 'a',
+            'type': 'text',
+            'required': true,
+            'visibleWhen': {'field': 'b', 'equals': 'x'},
+          },
+          {
+            'key': 'b',
+            'type': 'text',
+            'visibleWhen': {'field': 'c', 'equals': 'x'},
+          },
+          {
+            'key': 'c',
+            'type': 'text',
+            'visibleWhen': {'field': 'b', 'equals': 'x'},
+          },
+        ],
+      });
+      const data = {'b': 'x', 'c': 'x'};
+
+      expect(missingKeys(cycle, data), {'a'});
+      expect(keysOf(missingFields(cycle, data)), ['a']);
     });
   });
 

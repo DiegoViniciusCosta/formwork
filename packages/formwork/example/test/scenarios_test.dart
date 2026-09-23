@@ -6,6 +6,7 @@ import 'package:formwork_example/scenarios/conditional_fields.dart';
 import 'package:formwork_example/scenarios/custom_field_types.dart';
 import 'package:formwork_example/scenarios/custom_validators.dart';
 import 'package:formwork_example/scenarios/external_state.dart';
+import 'package:formwork_example/scenarios/profile_completion.dart';
 import 'package:formwork_example/scenarios/rebuild_inspector.dart';
 
 Future<void> _open(WidgetTester t, Widget scenario) async {
@@ -55,6 +56,46 @@ void main() {
       await t.pageBack();
       await t.pumpAndSettle();
     }
+  });
+
+  group('profile completion', () {
+    testWidgets('renewal: answering "no" hides the vehicle chain and saves',
+        (t) async {
+      await _open(t, const ProfileCompletionScenario());
+      await t.tap(find.text('Renewal'));
+      await t.pumpAndSettle();
+      expect(find.text('Do you have a vehicle?'), findsOneWidget);
+      expect(_field('License plate'), findsNothing);
+
+      await _pick(t, 'Do you have a vehicle?', 'No');
+      await t.tap(find.widgetWithText(FilledButton, 'Save'));
+      await t.pump(const Duration(seconds: 2));
+      await t.pumpAndSettle();
+
+      expect(find.text('Submitted payload'), findsOneWidget);
+    });
+
+    testWidgets('renewal: answering "yes" shows the known type prefilled',
+        (t) async {
+      await _open(t, const ProfileCompletionScenario());
+      await t.tap(find.text('Renewal'));
+      await t.pumpAndSettle();
+
+      await _pick(t, 'Do you have a vehicle?', 'Yes');
+
+      expect(find.text('Car'), findsOneWidget);
+      expect(_field('License plate'), findsOneWidget);
+    });
+
+    testWidgets('highlight mode shows the whole form, prefilled', (t) async {
+      await _open(t, const ProfileCompletionScenario());
+      await t.tap(find.text('Highlight missing'));
+      await t.pumpAndSettle();
+
+      expect(_field('Full name'), findsOneWidget);
+      expect(find.text('Maria Silva'), findsOneWidget);
+      expect(_field('Monthly income'), findsOneWidget);
+    });
   });
 
   group('all field types', () {

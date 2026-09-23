@@ -1,0 +1,23 @@
+name: formwork_material
+description: Material Design field builders for formwork.
+version: 0.1.0
+repository: https://github.com/<your-user>/formwork/tree/main/packages/formwork_material
+issue_tracker: https://github.com/<your-user>/formwork/issues
+topics:
+  - form
+  - forms
+  - material-design
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  formwork: ^0.1.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

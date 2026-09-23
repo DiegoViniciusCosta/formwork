@@ -19,9 +19,10 @@ Confirmado no pub.dev em 2026-09-23: `formwork` e `formwork_material` não
 existem (404), então os nomes estão livres. Os itens 7 e 8 são uma quebra
 limpa, sem aliases nem guia de migração.
 
-### 3. ⬜ Rodar os testes do exemplo no `verify.sh`
-O `verify.sh` analisa o exemplo mas não roda os testes dele. Hoje nada
-garante a galeria de cenários. Pequeno, sem decisão.
+### 3. ✅ Testes do exemplo no `verify.sh`
+O `verify.sh` roda os testes do exemplo nos dois modos (`--fast` e
+completo), e portanto também no CI. Testado: um teste quebrado no exemplo
+faz o script sair com código 1.
 
 ---
 

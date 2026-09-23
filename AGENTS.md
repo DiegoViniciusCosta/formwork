@@ -20,6 +20,7 @@ packages/formwork/               engine, validation, rendering
   lib/src/core/                  pure Dart: no Flutter, no dart:ui
   lib/src/flutter/               widgets layer: package:flutter/widgets only
   test/rebuild_test.dart         rebuild-count contract (principle 2)
+  example/                       scenario gallery; its tests run in verify.sh
 packages/formwork_material/      Material builders (satellite)
 docs/design/                     design docs: source of truth for API decisions
 tool/verify.sh                   the one command that decides "done"

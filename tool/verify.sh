@@ -28,13 +28,18 @@ step "principles" bash tool/check_principles.sh
 for dir in packages/*/; do
   pkg=$(basename "$dir")
   (cd "$dir" && flutter pub get >/dev/null) || { echo "FAILED: pub get $pkg"; status=1; continue; }
-  if ! $fast && [ -d "$dir/example" ]; then
-    (cd "$dir/example" && flutter pub get >/dev/null) || { echo "FAILED: pub get $pkg/example"; status=1; }
+  example="$dir/example"
+  if [ -d "$example" ]; then
+    (cd "$example" && flutter pub get >/dev/null) || { echo "FAILED: pub get $pkg/example"; status=1; }
   fi
 
   step "format $pkg"  dart format --output=none --set-exit-if-changed "$dir"
   step "analyze $pkg" bash -c "cd '$dir' && flutter analyze --no-pub"
   step "test $pkg"    bash -c "cd '$dir' && flutter test --no-pub --reporter=$reporter"
+  # The example is documentation that runs: its tests guard the scenarios.
+  if [ -d "$example/test" ]; then
+    step "test $pkg/example" bash -c "cd '$example' && flutter test --no-pub --reporter=$reporter"
+  fi
 
   if ! $fast; then
     dart pub global activate pana >/dev/null

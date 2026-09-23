@@ -9,13 +9,10 @@ Legenda: ⬜ a fazer · 🟨 esperando decisão · ✅ feito
 
 ## Agora: destrava tudo e não precisa de design
 
-### 1. ⬜ Colocar o projeto em git
-A pasta não é um repositório git, apesar de ter `.gitignore` e `.github/`.
-Nada do que foi feito tem histórico, e não há como desfazer uma mudança.
-- Se o repositório existe em outro lugar (GitHub), clonar e trazer as
-  mudanças. Se não, `git init` e um commit inicial.
-- Adicionar `build/` e `android/.gradle/` do exemplo ao `.gitignore`.
-- **Decisão:** existe um repositório remoto?
+### 1. ✅ Projeto em git
+Repositório local criado com commit inicial, e o remoto `origin` aponta
+para `git@github.com:DiegoViniciusCosta/formwork.git`. Falta só o push,
+que é seu: `git push -u origin main`.
 
 ### 2. ✅ A 0.1 não foi publicada
 Confirmado no pub.dev em 2026-09-23: `formwork` e `formwork_material` não

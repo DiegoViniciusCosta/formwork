@@ -55,7 +55,8 @@ engine. No existing test can catch this: rebuild counts stay at 1.
 
 ## Decision
 
-Three stages. Each one ships alone and is measured before the next.
+Three stages, each measured before the next. Stages 1 and 2 ship alone;
+stage 3 ships in the 0001 release, after stage 2 (amended by 0006 §6).
 
 **Stage 1: stop the needless copies (internal, no API change).**
 - Build the new map once and wrap it in `UnmodifiableMapView` instead of
@@ -112,7 +113,8 @@ Prototype measured against today's copy (`set` of one slot):
 | 10,000  | 1,475 µs                  | 792 µs                       | 0.4 µs     |
 | 100,000 | 17,720 µs                 | 8,943 µs                     | 1.1 µs     |
 
-**Stage 3: a view that visits only what changed.**
+**Stage 3: a view that visits only what changed.** Designed in 0006 §6
+(per-field listenables notified from `changedPaths`).
 - The controller notifies per field, using `changedPaths`, instead of
   notifying the whole form.
 - Each field widget listens to its own slot.
@@ -180,5 +182,5 @@ Prototype measured against today's copy (`set` of one slot):
    4 ms at 10,000 fields, measured in profile mode on a mid-range device.
    Needs agreement.
 4. **Stage 3 notification cost.** A `ChangeNotifier` calls every listener,
-   so n listeners still means n calls per change. Per-field notification
-   needs a keyed listener registry. Its shape is not designed here.
+   so n listeners still means n calls per change. Resolved by 0006 §6:
+   per-field listenables, notified only for the fields in `changedPaths`.

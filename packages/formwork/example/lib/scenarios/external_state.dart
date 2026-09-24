@@ -42,8 +42,8 @@ const _catalogJson = <String, dynamic>{
 
 /// No controller: the screen owns a history of immutable snapshots and
 /// drives [DynamicFormView] with plain `setState`, the same shape a Cubit,
-/// a Riverpod Notifier or a Redux store would use. Caveat: text fields do
-/// not yet follow values set from outside (see the known bug below).
+/// a Riverpod Notifier or a Redux store would use. Every field, text
+/// included, shows what the current snapshot holds.
 class ExternalStateScenario extends StatefulWidget {
   const ExternalStateScenario({super.key});
 
@@ -100,11 +100,10 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
         whatToTry: const [
           'Type a title, pick High, type a reason. Each change is a new '
               'snapshot in the history.',
-          'Undo on the dropdown or checkbox: they follow the snapshot.',
-          'KNOWN BUG: Undo while typing, Reset, or Fill sample. The '
-              'snapshot changes (see the inspector) but text fields keep '
-              'showing the old text: TextControllerBinding ignores values '
-              'that come from outside the field.',
+          'Undo, Reset and Fill sample change the snapshot from outside '
+              'the fields: every field follows, text fields included.',
+          'Undo while typing a title: the text steps back one keystroke at '
+              'a time, and typing again continues from there.',
         ],
         actions: [
           IconButton(

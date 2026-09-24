@@ -1,6 +1,6 @@
 # 0005: Text fields follow the snapshot
 
-Status: **draft**
+Status: **accepted** (2026-09-23)
 
 ## Problem
 
@@ -143,7 +143,7 @@ In the binding's `didUpdateWidget`:
   - the rule sees an outside change and resets the text to `a`;
   - a keystroke is lost.
 
-  See open question 2.
+  See "Decided with acceptance", item 2.
 - **Normalizing in `onChanged` is not supported.** If an app trims or
   uppercases the value on every keystroke, the value stops meaning the
   text. The text is replaced, and typing breaks (a trim makes spaces
@@ -165,7 +165,7 @@ In the binding's `didUpdateWidget`:
   - It fails when the app transforms `onChanged`, because the value that
     comes back was never emitted.
   - Lost for now: it adds mutable state per field. It is the candidate
-    for open question 2.
+    if lagging adapters need handling later.
 - **Mark outside changes in the engine** (`change(..., fromUser: false)`,
   or a revision counter in `FieldContext`). Lost:
   - it adds engine and `FieldContext` API for something only text inputs
@@ -211,21 +211,18 @@ In the binding's `didUpdateWidget`:
   - reset to `null` while the text is `-` keeps `-` (a known limit, pinned
     by a test);
   - an adapter that delivers values late reverts typed text (a known
-    limit, pinned by a test, until open question 2 is decided).
+    limit, pinned by a test).
 - **Tests on rebuilds:** `rebuild_test.dart` already proves an outside
   change rebuilds only its field. A new test checks the binding runs no
   extra builds of its own.
 - **Tests in the example:** undo, reset and "fill sample" in "External
   state & undo" update the text.
 
-## Open questions
+## Decided with acceptance
 
-1. **IME composition.** An outside change that arrives while the user is
-   composing (for example, Japanese input) drops the composition. That is
-   rare, because an outside change and typing at the same instant are
-   rare. Accept it, or defer the replacement until the composition ends?
-2. **Lagging adapters.** Should the binding also ignore values it emitted
-   and is still waiting to see come back (the "pending echoes" variant
-   above)? It makes throttled or async adapters safe, at the cost of
-   per-field state. Proposed: no, until a real adapter needs it. The
-   adapters formwork documents update synchronously.
+1. **IME composition:** accepted. An outside change that arrives while the
+   user is composing drops the composition, because an outside change and
+   typing at the same instant are rare.
+2. **Lagging adapters:** not handled now. The "pending echoes" variant
+   stays documented above, for when a real adapter needs it. The limit is
+   pinned by a test.

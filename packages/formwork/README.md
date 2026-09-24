@@ -175,19 +175,23 @@ class ProfileForm extends Notifier<FormSnapshot> {
 
 ```dart
 registry.register('taxId', (context, field, ctx) => TextControllerBinding(
-      initialText: ctx.value?.toString() ?? '',
-      builder: (_, controller) => MyDsTextInput(
+      value: ctx.value,
+      onChanged: ctx.onChanged,
+      builder: (_, controller, onTextChanged) => MyDsTextInput(
         controller: controller,
         label: field.label,
         errorText: ctx.errorText,
         enabled: ctx.enabled,
-        onChanged: ctx.onChanged,
+        onChanged: onTextChanged,
       ),
     ));
 ```
 
-Text inputs should use `TextControllerBinding` so the controller survives
-rebuilds.
+Text inputs should use `TextControllerBinding`. It keeps one controller
+for the life of the field, so the cursor survives rebuilds, and it keeps
+the text in step with the value: undo, reset and state restored by Bloc
+or Riverpod show up in the field. For non-text values, pass `parse` and
+`format`, for example `parse: (t) => num.tryParse(t)`.
 
 ## Stability
 

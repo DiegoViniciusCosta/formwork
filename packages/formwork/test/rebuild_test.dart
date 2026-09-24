@@ -125,4 +125,42 @@ void main() {
 
     expect(probe.builds, {'root': 1});
   });
+
+  testWidgets('an outside change rebuilds only its text field, once',
+      (tester) async {
+    final builds = <String, int>{};
+    final registry = FieldRegistry()
+      ..register(
+        'probeText',
+        (context, field, ctx) => TextControllerBinding<Object>(
+          value: ctx.value,
+          onChanged: ctx.onChanged,
+          builder: (context, controller, onTextChanged) {
+            builds.update(field.key, (n) => n + 1, ifAbsent: () => 1);
+            return Material(
+              child: TextField(
+                controller: controller,
+                onChanged: onTextChanged,
+              ),
+            );
+          },
+        ),
+      );
+    final config = FormConfig.fromMap({
+      'fields': [
+        for (final key in ['a', 'b', 'c']) {'key': key, 'type': 'probeText'},
+      ],
+    });
+    final controller = await pumpForm(tester, config, registry);
+
+    builds.clear();
+    controller.change('b', 'from outside');
+    await tester.pump();
+
+    expect(builds, {'b': 1});
+    final texts = tester
+        .widgetList<TextField>(find.byType(TextField))
+        .map((f) => f.controller!.text);
+    expect(texts, ['', 'from outside', '']);
+  });
 }

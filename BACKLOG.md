@@ -65,17 +65,7 @@ Depende de: 3.
 
 ## Próximo
 
-### 5. 🟨 Campos de texto seguem o snapshot (0005)
-Undo, reset e valores vindos de fora atualizam o estado, mas o `TextField`
-continua mostrando o texto antigo. Afeta quem usa Bloc, Riverpod ou
-qualquer estado externo (princípio 1).
-- **Decisão:** aprovar `docs/design/0005-text-follows-snapshot.md` e
-  responder as 2 perguntas em aberto: composição de teclado (IME) e
-  adaptadores com atraso.
-- Pequeno e independente da fundação: pode ser adiantado e implementado
-  entre as etapas do item 3, se você quiser a correção antes.
-
-### 6. ⬜ Reposicionar o README
+### 5. ⬜ Reposicionar o README
 O diferencial real não são os rebuilds (o `reactive_forms` e o
 `flutter_form_builder` já reconstroem por campo). É a combinação:
 - formulários definidos pelo servidor;
@@ -114,4 +104,7 @@ classes e layout só depois do item 3 (análise de 2026-09-23 no pub.dev).
 - Correção: `visibleWhen` segue cadeias.
 - 0002 etapa 1: `change()` cerca de 4x mais rápido por tecla.
 - Correção: `FormSnapshot.touched` agora é somente-leitura.
-- Design docs 0002, 0003 (aceito), 0004, 0005 e 0006.
+- 0005 implementado: campos de texto seguem o snapshot (undo, reset e
+  estado restaurado aparecem no campo). O último teste pulado do projeto
+  voltou a rodar.
+- Design docs 0002, 0003 (aceito), 0004, 0005 (aceito) e 0006.

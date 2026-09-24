@@ -34,9 +34,11 @@ Widget _text(
   List<TextInputFormatter>? formatters,
   Object? Function(String raw)? parse,
 }) =>
-    TextControllerBinding(
-      initialText: x.value?.toString() ?? '',
-      builder: (_, controller) => TextField(
+    TextControllerBinding<Object>(
+      value: x.value,
+      parse: parse,
+      onChanged: x.onChanged,
+      builder: (_, controller, onTextChanged) => TextField(
         controller: controller,
         enabled: x.enabled,
         decoration: InputDecoration(
@@ -47,7 +49,7 @@ Widget _text(
         keyboardType: keyboard,
         obscureText: obscure,
         inputFormatters: formatters,
-        onChanged: (s) => x.onChanged(parse == null ? s : parse(s)),
+        onChanged: onTextChanged,
       ),
     );
 

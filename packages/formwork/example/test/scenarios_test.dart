@@ -244,16 +244,31 @@ void main() {
       expect(checkbox.value, isFalse);
     });
 
-    testWidgets(
-      'text fields follow values set from outside',
-      (t) async {
-        await _open(t, const ExternalStateScenario());
-        await t.tap(find.byTooltip('Fill sample'));
-        await t.pump();
+    String titleText(WidgetTester t) =>
+        t.widget<TextField>(_field('Title')).controller!.text;
 
-        expect(find.text('Fix login crash'), findsOneWidget);
-      },
-      skip: true, // Known bug: TextControllerBinding ignores new values.
-    );
+    testWidgets('text fields follow values set from outside', (t) async {
+      await _open(t, const ExternalStateScenario());
+      await t.tap(find.byTooltip('Fill sample'));
+      await t.pump();
+      expect(titleText(t), 'Fix login crash');
+
+      await t.tap(find.byTooltip('Reset'));
+      await t.pump();
+      expect(titleText(t), '');
+    });
+
+    testWidgets('undo steps a text field back', (t) async {
+      await _open(t, const ExternalStateScenario());
+      await t.enterText(_field('Title'), 'Fix');
+      await t.pump();
+      await t.enterText(_field('Title'), 'Fix login');
+      await t.pump();
+
+      await t.tap(find.byTooltip('Undo'));
+      await t.pump();
+
+      expect(titleText(t), 'Fix');
+    });
   });
 }

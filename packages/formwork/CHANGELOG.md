@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Breaking:** `TextControllerBinding` is now generic and follows the
+  value (design doc 0005). It takes `value`, `onChanged`, and optional
+  `parse` and `format`, instead of `initialText`; its builder gets a third
+  argument, `onTextChanged`, to wire to the input. The text is kept while
+  it still means the value, so typing is untouched, and replaced when the
+  value comes from outside: undo, reset, state restored by Bloc or
+  Riverpod.
 - Added `missingKeys`: the keys a user still has to answer, without
   hiding anything, for apps that show the whole form and highlight what
   is missing (design doc 0003).

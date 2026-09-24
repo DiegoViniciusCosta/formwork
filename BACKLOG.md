@@ -11,11 +11,24 @@ Legenda: ⬜ a fazer · 🟨 esperando decisão · ✅ feito
 
 Motivo: hoje o formwork está atrás do `reactive_forms` em validação
 (validação assíncrona, validação entre campos, erros como dados) e em
-usabilidade para quem escreve formulários em código (sem tipos, sem
-layout). Os itens 1 a 3 saem juntos, numa única versão com quebra limpa
-(a 0.1 não foi publicada).
+usabilidade para quem escreve formulários em código. O 0007 garante que a
+fundação já suporte, no futuro, formulários feitos de widgets
+("everything is a widget"). Os itens 3 a 5 saem numa única versão com
+quebra limpa (a 0.1 não foi publicada).
 
-### 1. ⬜ Design doc: estado do formulário na UI, e foco
+### 1. 🟨 Aprovar o 0007 (arquitetura: um motor, várias portas de entrada)
+`docs/design/0007-architecture-layers.md`:
+- três pacotes (`formwork_core` em Dart puro, `formwork` e
+  `formwork_material`);
+- o engine registra e remove campos em tempo de execução;
+- armazenamento por caminho (HAMT), com as mesmas metas do 0002;
+- o `FieldView` ganha `builder:` por campo.
+
+Ele altera os docs 0001, 0002, 0003, 0004 e 0006, e duas regras do
+projeto: o título do princípio 1, e a permissão para o `formwork`
+depender dos próprios pacotes.
+
+### 2. ⬜ Design doc: estado do formulário na UI, e foco
 - Um helper para a UI reagir ao estado do formulário: botão de enviar
   desabilitado, "enviando…", contagem de erros. Hoje isso exige um
   `ValueListenableBuilder` montado na mão.
@@ -25,33 +38,47 @@ layout). Os itens 1 a 3 saem juntos, numa única versão com quebra limpa
 Pequeno. Deve ser aprovado antes da implementação, porque mexe no
 `FieldProps`.
 
-### 2. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, aceitos)
+### 3. ⬜ Separar os pacotes (`formwork_core`)
+Mecânico, sem mudança de comportamento: mover `lib/src/core` para
+`packages/formwork_core`, fazer o `formwork` depender dele e reexportá-lo,
+e adicionar as regras novas ao `check_principles.sh`. Todos os testes
+continuam verdes, e o `formwork_core` passa a ser testado com `dart test`,
+sem Flutter.
+Depende de: 1.
+
+### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
 Na ordem da "Implementation order" do 0001, e dentro dela:
+- **0007:**
+  - registro de campos em tempo de execução;
+  - definições e grafo dentro do snapshot;
+  - HAMT por caminho;
+  - biblioteca de catálogo separada do engine;
 - **0001:** erros como dados mais um localizador, condições, validação
   entre campos, grafo de dependências, `touched` e `dirty` separados,
   ciclos rejeitados com erro claro;
-- **0002 etapas 2 e 3:** trie persistente para o `FieldState`, e
-  notificação por campo, que o `FieldView` do 0006 exige;
-- **0006:** classes, codecs, `FieldView`, `FormScope` e layout;
-- **item 1:** o helper de estado para a UI, e o foco;
+- **0002 etapas 2 e 3:** armazenamento persistente para o `FieldState`, e
+  notificação por campo;
+- **0006:** classes, codecs, `FieldView` (com `builder:` por campo),
+  `FormScope` e layout;
+- **item 2:** o helper de estado para a UI, e o foco;
 - **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
   "Planned".
 
 Inclui a regra do elo do meio para condições de vários campos, decidida
 no 0003.
 
-Depende de: 1.
+Depende de: 1, 2 e 3.
 
-### 3. ⬜ Aplicar os nomes do 0004 na mesma versão
+### 5. ⬜ Aplicar os nomes do 0004 na mesma versão
 Inclui os builders do `formwork_material` e a troca de `FieldContext` por
 `FieldProps` no `PRINCIPLES.md` e nos `AGENTS.md`.
-Depende de: 2.
+Depende de: 4.
 
 ---
 
 ## Próximo
 
-### 4. ⬜ Reposicionar o README
+### 6. ⬜ Reposicionar o README
 O diferencial real não são os rebuilds (o `reactive_forms` e o
 `flutter_form_builder` já reconstroem por campo). É a combinação:
 - formulários definidos pelo servidor;
@@ -68,11 +95,30 @@ O que fazer:
 - conferir cada afirmação sobre concorrentes na versão atual deles.
 
 Pode começar a qualquer momento, mas as afirmações sobre validação,
-classes e layout só depois do item 2 (análise de 2026-09-23 no pub.dev).
+classes e layout só depois do item 4 (análise de 2026-09-23 no pub.dev).
 
 ---
 
 ## Objetivos futuros
+
+### Formulários feitos de widgets ("everything is a widget")
+A segunda porta de entrada: campos declarados direto na árvore de
+widgets, como nos concorrentes, sem classe nem JSON.
+- **O primitivo** é um `Field<T>(name:, validators:, builder:)` no
+  `formwork`, que não depende de nenhum design system.
+- **Os widgets prontos** (`FwTextField(...)`) ficam nos kits, como o
+  `formwork_material`.
+
+O 0007 garante que o engine já suporta essa porta. Precisa de um design doc
+próprio, que decida:
+- quando um widget registra o campo durante o build;
+- quem é dono de cada registro quando o mesmo campo está montado duas
+  vezes;
+- como registrar com Bloc ou Riverpod (`SnapshotFieldView`);
+- como os widgets convivem com o `onlyMissing`.
+
+É também essa porta que torna a lista `fields` opcional em formulários
+escritos em código.
 
 ### Editor visual de formulários
 Se o formulário vindo do servidor é o diferencial do formwork, um editor

@@ -232,3 +232,11 @@ final registry = FieldRegistry()
    `'car'`. The same happens with any field hidden on screen, so this is
    the general question of whether hidden fields should be cleared, not
    specific to this doc.
+
+## Decided after acceptance (2026-09-23)
+
+1. **Multi-field conditions (open question 1):** a known field K is added
+   when some path in the dependency graph runs from a missing key, through
+   K, to another missing key. It generalizes the chain rule without a
+   special case. The accepted cost: it may ask again for a field whose
+   answer would not change the result.

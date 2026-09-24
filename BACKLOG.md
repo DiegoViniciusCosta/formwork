@@ -12,7 +12,7 @@ Legenda: ⬜ a fazer · 🟨 esperando decisão · ✅ feito
 Motivo: hoje o formwork está atrás do `reactive_forms` em validação
 (validação assíncrona, validação entre campos, erros como dados) e em
 usabilidade para quem escreve formulários em código (sem tipos, sem
-layout). Os itens 1 a 4 saem juntos, numa única versão com quebra limpa
+layout). Os itens 1 a 3 saem juntos, numa única versão com quebra limpa
 (a 0.1 não foi publicada).
 
 ### 1. ⬜ Design doc: estado do formulário na UI, e foco
@@ -25,17 +25,7 @@ layout). Os itens 1 a 4 saem juntos, numa única versão com quebra limpa
 Pequeno. Deve ser aprovado antes da implementação, porque mexe no
 `FieldProps`.
 
-### 2. 🟨 Decidir o elo do meio com condições de vários campos
-O 0003 define a regra para cadeias simples. Com `all` / `any` do 0001, um
-campo pode depender de vários, e a cadeia vira um grafo.
-- **Recomendação:** incluir um campo conhecido se algum caminho no grafo
-  passa por ele entre dois campos faltantes. Generaliza a regra atual sem
-  caso especial, ao custo de às vezes perguntar de novo um campo que não
-  mudaria o resultado.
-- **Alternativa:** incluir só se a condição ainda puder mudar de
-  resultado. Pergunta o mínimo, mas é bem mais complexo.
-
-### 3. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, aceitos)
+### 2. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, aceitos)
 Na ordem da "Implementation order" do 0001, e dentro dela:
 - **0001:** erros como dados mais um localizador, condições, validação
   entre campos, grafo de dependências, `touched` e `dirty` separados,
@@ -47,18 +37,21 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
 - **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
   "Planned".
 
-Depende de: 1 e 2.
+Inclui a regra do elo do meio para condições de vários campos, decidida
+no 0003.
 
-### 4. ⬜ Aplicar os nomes do 0004 na mesma versão
+Depende de: 1.
+
+### 3. ⬜ Aplicar os nomes do 0004 na mesma versão
 Inclui os builders do `formwork_material` e a troca de `FieldContext` por
 `FieldProps` no `PRINCIPLES.md` e nos `AGENTS.md`.
-Depende de: 3.
+Depende de: 2.
 
 ---
 
 ## Próximo
 
-### 5. ⬜ Reposicionar o README
+### 4. ⬜ Reposicionar o README
 O diferencial real não são os rebuilds (o `reactive_forms` e o
 `flutter_form_builder` já reconstroem por campo). É a combinação:
 - formulários definidos pelo servidor;
@@ -75,7 +68,7 @@ O que fazer:
 - conferir cada afirmação sobre concorrentes na versão atual deles.
 
 Pode começar a qualquer momento, mas as afirmações sobre validação,
-classes e layout só depois do item 3 (análise de 2026-09-23 no pub.dev).
+classes e layout só depois do item 2 (análise de 2026-09-23 no pub.dev).
 
 ---
 
@@ -117,4 +110,6 @@ deixa de precisar escrever JSON.
 - 0005 implementado: campos de texto seguem o snapshot (undo, reset e
   estado restaurado aparecem no campo). O último teste pulado do projeto
   voltou a rodar.
-- Design docs 0001 a 0006 aceitos (2026-09-23).
+- Design docs 0001 a 0006 aceitos (2026-09-23), com os trade-offs de
+  cada um. Melhorias ficam para depois da fundação.
+- Decidido: o elo do meio com condições de vários campos (0003).

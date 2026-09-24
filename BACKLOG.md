@@ -33,7 +33,7 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
 - **0002 etapas 2 e 3:** trie persistente para o `FieldState`, e
   notificação por campo, que o `FieldView` do 0006 exige;
 - **0006:** classes, codecs, `FieldView`, `FormScope` e layout;
-- **item 2:** o helper de estado para a UI, e o foco;
+- **item 1:** o helper de estado para a UI, e o foco;
 - **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
   "Planned".
 

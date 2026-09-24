@@ -1,6 +1,6 @@
 # 0002: Per-change cost independent of form size
 
-Status: **draft**
+Status: **accepted** (2026-09-23)
 
 ## Problem
 
@@ -184,3 +184,13 @@ Prototype measured against today's copy (`set` of one slot):
 4. **Stage 3 notification cost.** A `ChangeNotifier` calls every listener,
    so n listeners still means n calls per change. Resolved by 0006 §6:
    per-field listenables, notified only for the fields in `changedPaths`.
+
+## Decided with acceptance
+
+1. **Targets (open question 3):** `change()` under 50 µs, and change plus
+   frame under 4 ms, at 10,000 fields, in profile mode on a mid-range
+   device. Benchmarks live outside CI.
+2. **Still open, on purpose:**
+   - repeatable lists (open question 1): decided with lists;
+   - the snapshot surface (open question 2): decided during the
+     implementation of 0001 §6, with code in hand.

@@ -1,6 +1,6 @@
 # 0001: Foundation
 
-Status: **draft**, open for review.
+Status: **accepted** (2026-09-23)
 
 This document fixes the decisions that are expensive to change after 1.0:
 the value model, the error model, the definition API and conditions. It
@@ -247,3 +247,12 @@ adding it later is not a breaking change.
 4. `FieldDef<T>` and `FormDef.fromJson`.
 5. View switch to identity checks; rebuild tests updated.
 6. `group` and `list` in the engine; list UI stays for a later document.
+
+## Decided with acceptance
+
+1. **`FormDef.toJson()`:** not in the foundation release. Custom types are
+   not required to serialize. A visual form editor is a later goal of the
+   backlog, and it is what will bring `toJson()` back: registered as a
+   plan, not a refusal.
+2. **Relative paths inside list items** (`$item.age`): decided together
+   with the list UI, in its own doc.

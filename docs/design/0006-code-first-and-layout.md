@@ -1,6 +1,6 @@
 # 0006: Forms as classes, and layout
 
-Status: **draft**
+Status: **accepted** (2026-09-23)
 
 ## Problem
 
@@ -418,3 +418,15 @@ alone.
 5. **Where `localizer` and `enabled` live long term.** §4 puts them on
    `FormScope` and `FieldView`. Should they move into the controller, so
    Bloc users get them without a scope?
+
+## Decided with acceptance
+
+1. **`fields` completeness:** the explicit list plus the debug checks of
+   §4. No lint and no code generation for now.
+2. **No `visibleWhen` on layout nodes** for now: a node whose children are
+   all hidden is not rendered, which covers the common case.
+3. **List items in layout:** decided with the list UI doc.
+4. **Names:** `FieldView` and `SnapshotFieldView`, following 0004's two
+   widgets.
+5. **Where `localizer` and `enabled` live:** decided during the
+   implementation, with code in hand.

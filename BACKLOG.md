@@ -15,31 +15,27 @@ usabilidade para quem escreve formulários em código (sem tipos, sem
 layout). Os itens 1 a 4 saem juntos, numa única versão com quebra limpa
 (a 0.1 não foi publicada).
 
-### 1. 🟨 Aprovar os design docs da fundação
-Leitura e decisões suas, nesta ordem:
-1. `0001-foundation.md`: modelo novo (`FieldDef`, `FormDef`, erros como
-   dados, condições, grafo de dependências, `FieldState`). Perguntas em
-   aberto: `toJson`, e caminhos relativos em listas.
-2. `0006-code-first-and-layout.md`: formulário como classe, com campos
-   tipados; `FieldView` para pôr cada campo em qualquer lugar; layout
-   vindo do servidor (`section`, `row`). Perguntas em aberto: lint para
-   campos fora de `fields`, `visibleWhen` em seções, e nomes.
-3. `0002-per-change-cost.md`: desempenho. As metas de tempo são uma
-   decisão sua.
-4. `0004-api-naming.md`: nomes. Perguntas em aberto: um ou dois widgets,
-   o nome `FieldProps`, e `initialValues` ou `data`.
-
-### 2. ⬜ Design doc: estado do formulário na UI, e foco
+### 1. ⬜ Design doc: estado do formulário na UI, e foco
 - Um helper para a UI reagir ao estado do formulário: botão de enviar
   desabilitado, "enviando…", contagem de erros. Hoje isso exige um
   `ValueListenableBuilder` montado na mão.
 - Levar o foco ao primeiro campo com erro ao enviar. O builder precisa
   receber um `FocusNode` (entra no `FieldProps` do 0004).
 
-Pequeno. Deve ser escrito e aprovado junto com o item 1, porque mexe no
+Pequeno. Deve ser aprovado antes da implementação, porque mexe no
 `FieldProps`.
 
-### 3. ⬜ Implementar a fundação
+### 2. 🟨 Decidir o elo do meio com condições de vários campos
+O 0003 define a regra para cadeias simples. Com `all` / `any` do 0001, um
+campo pode depender de vários, e a cadeia vira um grafo.
+- **Recomendação:** incluir um campo conhecido se algum caminho no grafo
+  passa por ele entre dois campos faltantes. Generaliza a regra atual sem
+  caso especial, ao custo de às vezes perguntar de novo um campo que não
+  mudaria o resultado.
+- **Alternativa:** incluir só se a condição ainda puder mudar de
+  resultado. Pergunta o mínimo, mas é bem mais complexo.
+
+### 3. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, aceitos)
 Na ordem da "Implementation order" do 0001, e dentro dela:
 - **0001:** erros como dados mais um localizador, condições, validação
   entre campos, grafo de dependências, `touched` e `dirty` separados,
@@ -50,9 +46,6 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
 - **item 2:** o helper de estado para a UI, e o foco;
 - **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
   "Planned".
-
-Antes de começar: decidir como a regra do elo do meio (0003) se estende a
-condições com vários campos (`all` / `any`), a pergunta 1 do 0003.
 
 Depende de: 1 e 2.
 
@@ -75,11 +68,28 @@ O diferencial real não são os rebuilds (o `reactive_forms` e o
 
 O que fazer:
 - abrir com esse posicionamento; rebuilds viram garantia de qualidade;
+- dizer o limite da validação no backend: o mesmo catálogo só é validado
+  sem esforço num backend em Dart; num Spring Boot, o engine precisa ser
+  portado ou chamado como serviço;
 - uma seção "Quando **não** usar o formwork";
 - conferir cada afirmação sobre concorrentes na versão atual deles.
 
 Pode começar a qualquer momento, mas as afirmações sobre validação,
 classes e layout só depois do item 3 (análise de 2026-09-23 no pub.dev).
+
+---
+
+## Objetivos futuros
+
+### Editor visual de formulários
+Se o formulário vindo do servidor é o diferencial do formwork, um editor
+visual é o que transforma esse nicho em produto: quem define o formulário
+deixa de precisar escrever JSON.
+- Depende de `FormDef.toJson()`, que ficou fora da fundação (decisão
+  registrada no 0001 como plano, não como recusa).
+- O custo a pesar na hora: todo tipo de campo customizado passa a precisar
+  saber se converter para JSON.
+- Precisa de um design doc próprio antes de começar.
 
 ---
 
@@ -107,4 +117,4 @@ classes e layout só depois do item 3 (análise de 2026-09-23 no pub.dev).
 - 0005 implementado: campos de texto seguem o snapshot (undo, reset e
   estado restaurado aparecem no campo). O último teste pulado do projeto
   voltou a rodar.
-- Design docs 0002, 0003 (aceito), 0004, 0005 (aceito) e 0006.
+- Design docs 0001 a 0006 aceitos (2026-09-23).

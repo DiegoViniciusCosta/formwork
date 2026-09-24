@@ -1,6 +1,6 @@
 # 0004: Public API names and shape
 
-Status: **draft**
+Status: **accepted** (2026-09-23)
 
 ## Problem
 
@@ -229,3 +229,9 @@ names are also still free.
 3. **`initialValues` or `data`?** `initialValues` pairs with
    `snapshot.values`, but the map also carries user data outside the form,
    which feeds visibility rules and is never shown.
+
+## Decided with acceptance
+
+1. **Two widgets:** `FormView` and `SnapshotFormView`.
+2. **`FieldProps<T>`**, generic, matching `FieldDef<T>`.
+3. **`initialValues`**, pairing with `snapshot.values`.

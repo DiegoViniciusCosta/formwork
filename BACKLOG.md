@@ -18,15 +18,18 @@ quebra limpa (a 0.1 não foi publicada).
 
 ### 2. 🟨 Aprovar o 0008 (estado do formulário na UI, e foco)
 `docs/design/0008-form-status-and-focus.md`:
-- `FormStatus` no snapshot (`errorCount`, `submitCount`, `submitting`,
-  `validating`, `dirty`), que só muda quando um desses fatos muda;
-  `controller.status` e `FormStatusBuilder` para a UI;
-- enviar vira três transições do engine: `submit` (como hoje),
-  `startSubmitting` e `completeSubmit`, que aplica os erros do servidor;
-  um segundo envio durante o primeiro é ignorado; `controller.submitWith`
-  faz tudo de uma vez;
+- `FormStatus` no snapshot (`errorCount`, `formError`, `submitCount`,
+  `submitting`, `lastSubmit`, `validating`, `dirty`); `FormStatusBuilder`
+  com `select:` reconstrói só pelo que lê;
+- enviar vira transições do engine: `submit` (como hoje),
+  `startSubmitting`, `completeSubmit` (erros do servidor por campo e do
+  formulário inteiro; `accepted` ou `rejected`) e `abandonSubmit` (falha
+  sem resposta); um segundo envio durante o primeiro é ignorado;
+  `controller.submitWith` faz tudo de uma vez;
 - `FieldProps` ganha `focusNode`, criado pelo `FieldView`; um `FormFocus`
-  leva o foco ao primeiro campo com erro, na ordem de registro.
+  leva o foco ao primeiro campo com erro, na ordem de registro, rolando
+  até ele (`scroll: false` desliga);
+- comparação com os concorrentes no próprio doc (2026-09-25).
 
 Três perguntas abertas no doc: o nome do `submitWith`, marcar `touched` ao
 perder o foco, e contar à parte os erros do servidor em caminhos não

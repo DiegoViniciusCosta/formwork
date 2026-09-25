@@ -175,10 +175,17 @@ final class ServerErrors {          // formwork_core
 The controller wraps the whole sequence for apps that use it:
 
 ```dart
-final outcome = await controller.submitWith((payload) => api.save(payload));
-// save returns ServerErrors, or null when the server accepted.
+final outcome = await controller.submitTo(api.saveProfile);
+
+/// What the app does with a valid payload: send it, and report the answer.
+/// Returns ServerErrors, or null when the server accepted.
+typedef FormSender =
+    Future<ServerErrors?> Function(Map<String, Object?> payload);
 ```
 
+- **The name reads as a sentence:** "submit to `api.saveProfile`". It sits
+  next to `submit()` in autocomplete, and each dartdoc points to the
+  other.
 - It returns `null` when validation stopped the submit before sending, and
   the `SubmitOutcome` otherwise.
 - It moves focus to the first field error (§4) when validation or the
@@ -193,7 +200,7 @@ final outcome = await controller.submitWith((payload) => api.save(payload));
 FormStatusBuilder(
   select: (s) => s.submitting,
   builder: (context, submitting) => FilledButton(
-    onPressed: submitting ? null : () => controller.submitWith(save),
+    onPressed: submitting ? null : () => controller.submitTo(save),
     child: Text(submitting ? 'Sending…' : 'Send'),
   ),
 )
@@ -276,7 +283,7 @@ focus.requestFirstError(snapshot, scroll: false);
   requesting focus, because focusing a field the user cannot see is worse
   than scrolling. `scroll: false` turns it off, for example in a layout
   that scrolls on its own. flutter_form_builder defaults the other way.
-  `submitWith` takes the same `scroll:` and forwards it.
+  `submitTo` takes the same `scroll:` and forwards it.
 - **A form error alone moves no focus.** There is no field to focus; the
   app shows `status.formError` where it wants.
 - **Bloc users** call it from a `BlocListener` that fires when
@@ -291,7 +298,7 @@ focus.requestFirstError(snapshot, scroll: false);
 - **`submit()` becomes async and sets `submitting` itself** (like
   react-hook-form's `handleSubmit`). Lost: it breaks 0004's synchronous
   `submit()`, and it puts I/O in the flow of forms that do not need it.
-  The transitions keep it opt-in, and `submitWith` gives the one-call
+  The transitions keep it opt-in, and `submitTo` gives the one-call
   version.
 - **The form error as a reserved path** (react-hook-form's `root`). It
   reuses the field-error machinery, but a reserved key can clash with a
@@ -314,6 +321,18 @@ focus.requestFirstError(snapshot, scroll: false);
   same form could focus different fields on different devices. It is also
   harder to test. Registration order is deterministic and computed in the
   engine. Apps whose screen order differs can reorder `fields`.
+- **Other names for `submitTo`.**
+  - `submitWith`: "with" is vague, and reads like extra data
+    (`submitWith({'origin': 'app'})`).
+  - `send`: suggests the controller does I/O, sits away from `submit` in
+    autocomplete, and clashes with the natural parameter name.
+  - `submitAndSend`: "submit" and "send" say the same thing.
+  - `submitAsync`: names the mechanism, which the `Future` type already
+    shows.
+  - `handleSubmit(save)` returning a `VoidCallback`, as in
+    react-hook-form: handy for `onPressed`, but it loses the outcome.
+  - Renaming the synchronous `submit()` so the async one takes its name:
+    it reopens 0004 for a shorter name.
 - **A focus registry inside `FormController`,** or `focus()` on the model
   as in reactive_forms. It fits the default path, but `SnapshotFormView`
   users have no controller, and the model would hold UI objects.
@@ -329,7 +348,7 @@ focus.requestFirstError(snapshot, scroll: false);
 | Doc | What changes |
 |---|---|
 | 0001 | §2: server errors enter through `completeSubmit`, as `ServerErrors`. `ErrorLocalizer` takes a nullable field, for the form error. The snapshot gains `status` and `firstErrorPath`. |
-| 0004 | `FieldProps` gains `focusNode`. The cache contract is unchanged. `controller.submit()` is unchanged, and `submitWith` is added. `submit` ignores a call while submitting. |
+| 0004 | `FieldProps` gains `focusNode`. The cache contract is unchanged. `controller.submit()` is unchanged, and `submitTo` is added. `submit` ignores a call while submitting. |
 | 0006 | §4: `FieldView` owns a `FocusNode`. `FormScope` and the field views take `focus:`. §6: the form-level listenable is `controller.status`. |
 | 0007 | §6: server errors for registered paths are applied by `completeSubmit`, and discarded when the field changed during the submit. |
 
@@ -341,7 +360,7 @@ focus.requestFirstError(snapshot, scroll: false);
   - `startSubmitting`, `completeSubmit` and `abandonSubmit`;
   - `firstErrorPath`.
 - `formwork`:
-  - `controller.status` and `submitWith`;
+  - `controller.status` and `submitTo`;
   - `FormStatusBuilder` and `FormFocus`;
   - `focusNode` in `FieldProps`.
 - `formwork_material`: every builder passes `focusNode`.
@@ -369,7 +388,7 @@ is not breaking beyond what that release already breaks.
   - the form error neither counts in `errorCount` nor blocks the next
     submit, and clears on the next `startSubmitting`;
   - `abandonSubmit` gives `abandoned` and applies nothing;
-  - `submitWith` abandons the submit when `send` throws, and rethrows.
+  - `submitTo` abandons the submit when `send` throws, and rethrows.
 - **Rebuilds** (`rebuild_test.dart`):
   - typing in a valid field does not rebuild a `FormStatusBuilder`;
   - a `FormStatusBuilder` selecting `submitting` does not rebuild when
@@ -389,12 +408,10 @@ is not breaking beyond what that release already breaks.
 
 ## Open questions
 
-1. **Name of `submitWith`.** Alternatives: `send`, `submitAndSend`,
-   `submitAsync`. It should read well next to `submit()`.
-2. **Touched on blur.** With a `FocusNode` per field, a field could be
+1. **Touched on blur.** With a `FocusNode` per field, a field could be
    marked touched when it loses focus, so its errors show on blur instead
    of on the first change (0004 kept today's meaning of `touched`). Is
    that a validation mode worth adding, and in which release?
-3. **Server errors for unregistered paths in the status.** Should
+2. **Server errors for unregistered paths in the status.** Should
    `FormStatus` count them separately (`unplacedErrorCount`), so a banner
    can mention them, or is the list on the snapshot enough?

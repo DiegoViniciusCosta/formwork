@@ -25,15 +25,15 @@ quebra limpa (a 0.1 não foi publicada).
   `startSubmitting`, `completeSubmit` (erros do servidor por campo e do
   formulário inteiro; `accepted` ou `rejected`) e `abandonSubmit` (falha
   sem resposta); um segundo envio durante o primeiro é ignorado;
-  `controller.submitWith` faz tudo de uma vez;
+  `controller.submitTo(api.save)` faz tudo de uma vez;
 - `FieldProps` ganha `focusNode`, criado pelo `FieldView`; um `FormFocus`
   leva o foco ao primeiro campo com erro, na ordem de registro, rolando
   até ele (`scroll: false` desliga);
 - comparação com os concorrentes no próprio doc (2026-09-25).
 
-Três perguntas abertas no doc: o nome do `submitWith`, marcar `touched` ao
-perder o foco, e contar à parte os erros do servidor em caminhos não
-registrados.
+Duas perguntas abertas no doc: marcar `touched` ao perder o foco, e
+contar à parte os erros do servidor em caminhos não registrados. O nome
+`submitTo` foi decidido em 2026-09-25.
 
 ### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
 Na ordem da "Implementation order" do 0001, e dentro dela:

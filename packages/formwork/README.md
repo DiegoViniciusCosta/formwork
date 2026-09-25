@@ -172,6 +172,26 @@ class ProfileForm extends Notifier<FormSnapshot> {
 }
 ```
 
+### The engine without widgets
+
+`package:formwork/formwork.dart` brings in Flutter's widgets layer. To
+keep a layer of your app free of Flutter (a cubit, a notifier, a
+repository), import the engine from its own package, and list it in your
+`pubspec.yaml`, since you import it directly:
+
+```yaml
+dependencies:
+  formwork: ^0.1.0
+  formwork_core: ^0.1.0 # same version as formwork
+```
+
+```dart
+import 'package:formwork_core/formwork_core.dart';
+```
+
+A Dart backend or CLI depends on `formwork_core` alone, and validates the
+same catalogs as the app.
+
 ## Custom fields
 
 ```dart

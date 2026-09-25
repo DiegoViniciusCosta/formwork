@@ -351,3 +351,10 @@ The engine API above is what that doc will build on.
    dependencies between formwork's own packages) are approved. They land
    in PRINCIPLES.md, AGENTS.md and the tooling with the package split,
    once `formwork_core` exists.
+3. **`package:formwork/core.dart` is removed, not kept as a re-export**
+   (2026-09-25, with the package split). There is one path to the engine
+   without widgets: `formwork_core`. A re-export named "core" inside a
+   package that requires Flutter would repeat, on a smaller scale, the
+   false promise of problem 4. A Flutter app that wants a Flutter-free
+   layer lists `formwork_core` in its `pubspec.yaml`, as `bloc` and
+   `riverpod` users do next to `flutter_bloc` and `flutter_riverpod`.

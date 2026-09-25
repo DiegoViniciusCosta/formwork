@@ -13,29 +13,10 @@ Motivo: hoje o formwork está atrás do `reactive_forms` em validação
 (validação assíncrona, validação entre campos, erros como dados) e em
 usabilidade para quem escreve formulários em código. O 0007 garante que a
 fundação já suporte, no futuro, formulários feitos de widgets
-("everything is a widget"). Os itens 3 a 5 saem numa única versão com
+("everything is a widget"). Os itens 4 e 5 saem numa única versão com
 quebra limpa (a 0.1 não foi publicada).
 
-### 2. 🟨 Aprovar o 0008 (estado do formulário na UI, e foco)
-`docs/design/0008-form-status-and-focus.md`:
-- `FormStatus` no snapshot (`errorCount`, `formError`, `submitCount`,
-  `submitting`, `lastSubmit`, `validating`, `dirty`); `FormStatusBuilder`
-  com `select:` reconstrói só pelo que lê;
-- enviar vira transições do engine: `submit` (como hoje),
-  `startSubmitting`, `completeSubmit` (erros do servidor por campo e do
-  formulário inteiro; `accepted` ou `rejected`) e `abandonSubmit` (falha
-  sem resposta); um segundo envio durante o primeiro é ignorado;
-  `controller.submitTo(api.save)` faz tudo de uma vez;
-- `FieldProps` ganha `focusNode`, criado pelo `FieldView`; um `FormFocus`
-  leva o foco ao primeiro campo com erro, na ordem de registro, rolando
-  até ele (`scroll: false` desliga);
-- comparação com os concorrentes no próprio doc (2026-09-25).
-
-Duas perguntas abertas no doc: marcar `touched` ao perder o foco, e
-contar à parte os erros do servidor em caminhos não registrados. O nome
-`submitTo` foi decidido em 2026-09-25.
-
-### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
+### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, 0007 e 0008)
 Na ordem da "Implementation order" do 0001, e dentro dela:
 - **0007:**
   - registro de campos em tempo de execução;
@@ -49,14 +30,15 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
   notificação por campo;
 - **0006:** classes, codecs, `FieldView` (com `builder:` por campo),
   `FormScope` e layout;
-- **item 2:** o helper de estado para a UI, e o foco;
+- **0008:** `FormStatus`, as transições de envio, `submitTo`,
+  `FormStatusBuilder`, `focusNode` no `FieldProps` e `FormFocus`;
 - **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
   "Planned".
 
 Inclui a regra do elo do meio para condições de vários campos, decidida
 no 0003.
 
-Depende de: 2.
+Pode começar já.
 
 ### 5. ⬜ Aplicar os nomes do 0004 na mesma versão
 Inclui os builders do `formwork_material` e a troca de `FieldContext` por
@@ -119,6 +101,11 @@ deixa de precisar escrever JSON.
   saber se converter para JSON.
 - Precisa de um design doc próprio antes de começar.
 
+### `touched` ao perder o foco
+Um modo de validação em que os erros aparecem quando o campo perde o foco,
+e não na primeira mudança. O `FocusNode` por campo do 0008 já permite
+isso sem quebrar nada. Decidido no 0008: fica para depois da fundação.
+
 ---
 
 ## Perguntas abertas sem data (não bloqueiam nada acima)
@@ -156,6 +143,10 @@ deixa de precisar escrever JSON.
 - Design docs 0001 a 0006 aceitos (2026-09-23), com os trade-offs de
   cada um. Melhorias ficam para depois da fundação.
 - Decidido: o elo do meio com condições de vários campos (0003).
+- 0008 aceito (2026-09-25): estado do formulário na UI e foco. Decidido
+  junto: o nome `submitTo`; `touched` ao perder o foco fica para depois da
+  fundação; erros do servidor em caminhos não registrados não entram no
+  `FormStatus`.
 - Pacotes separados (2026-09-25): `formwork_core` em Dart puro, testado
   com `dart test`; o `formwork` o reexporta. Regras do 0007 aplicadas no
   `PRINCIPLES.md`, nos `AGENTS.md`, no hook, no `check_principles.sh` e no

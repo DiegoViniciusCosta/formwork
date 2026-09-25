@@ -1,6 +1,6 @@
 # 0008: Form status in the UI, and focus
 
-Status: **draft**
+Status: **accepted** (2026-09-25)
 
 ## Problem
 
@@ -406,12 +406,15 @@ is not breaking beyond what that release already breaks.
   - the same flow through `SnapshotFormView` with a standalone
     `FormFocus`.
 
-## Open questions
+## Decided with acceptance
 
-1. **Touched on blur.** With a `FocusNode` per field, a field could be
-   marked touched when it loses focus, so its errors show on blur instead
-   of on the first change (0004 kept today's meaning of `touched`). Is
-   that a validation mode worth adding, and in which release?
-2. **Server errors for unregistered paths in the status.** Should
-   `FormStatus` count them separately (`unplacedErrorCount`), so a banner
-   can mention them, or is the list on the snapshot enough?
+1. **The one-call submit is `submitTo`,** with a `FormSender` typedef.
+   The other names are under "Alternatives considered".
+2. **Touched on blur waits until after the foundation.** It is a new
+   validation mode, and the `FocusNode` per field already makes it
+   possible later without a breaking change. Until then `touched` keeps
+   0004's meaning: changed at least once.
+3. **Server errors for unregistered paths are not counted in
+   `FormStatus`.** The list on the snapshot is enough, and the status
+   stays small. An app that wants to mention them in a banner reads that
+   list.

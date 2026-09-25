@@ -110,14 +110,6 @@ isso sem quebrar nada. Decidido no 0008: fica para depois da fundação.
 
 ## Perguntas abertas sem data (não bloqueiam nada acima)
 
-- **`pana` no `verify.sh` completo (CI):** o `pana` ignora o
-  `pubspec_overrides.yaml`, então falha em todo pacote que depende de um
-  irmão não publicado. Já falhava no `formwork_material` (depende do
-  `formwork`); desde a separação, falha também no `formwork` (depende do
-  `formwork_core`). O `formwork_core` passa (150/160). Opções: pular o
-  `pana` nesses pacotes até a primeira publicação, ou aceitar o CI
-  vermelho até lá. O `--fast` não roda o `pana`.
-
 - **Dados antigos no servidor:** um campo que fica oculto não vai no
   payload, e o servidor mantém o valor antigo. Mandar `null` ou deixar com
   o servidor? (0003, pergunta 2)
@@ -143,6 +135,10 @@ isso sem quebrar nada. Decidido no 0008: fica para depois da fundação.
 - Design docs 0001 a 0006 aceitos (2026-09-23), com os trade-offs de
   cada um. Melhorias ficam para depois da fundação.
 - Decidido: o elo do meio com condições de vários campos (0003).
+- `pana` no CI (2026-09-25): o `verify.sh` pula o `pana` num pacote
+  enquanto a versão de um irmão do qual ele depende não está no pub.dev, e
+  diz qual. Volta sozinho depois da publicação. O `formwork_core` ganhou
+  um exemplo e tem 160/160.
 - 0008 aceito (2026-09-25): estado do formulário na UI e foco. Decidido
   junto: o nome `submitTo`; `touched` ao perder o foco fica para depois da
   fundação; erros do servidor em caminhos não registrados não entram no

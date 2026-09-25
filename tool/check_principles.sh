@@ -21,7 +21,7 @@ runtime_deps() {
 }
 
 # 1. The core is pure Dart: no Flutter, no dart:ui, in code or pubspec.
-if grep -rnE "^import '(package:flutter/|package:flutter_test/|dart:ui)" "$core/lib" "$core/test"; then
+if grep -rnE "^import '(package:flutter/|package:flutter_test/|dart:ui)" "$core/lib" "$core/test" "$core/example"; then
   error "formwork_core must not import Flutter or dart:ui."
 fi
 if grep -nE "flutter" "$core/pubspec.yaml"; then

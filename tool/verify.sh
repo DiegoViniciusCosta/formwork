@@ -23,6 +23,26 @@ step() {
   fi
 }
 
+# Prints " name version" for each sibling package that $1 depends on and
+# whose version (the one in the sibling's own pubspec.yaml) is not on
+# pub.dev. Only a 404 counts: if pub.dev cannot be reached, pana runs and
+# reports the problem itself.
+unpublished_siblings() {
+  local deps dep version code
+  deps=$(awk '
+    /^dependencies:/ { in_deps = 1; next }
+    /^[^ #]/         { in_deps = 0 }
+    in_deps && /^  [a-z_]+:/ { sub(":", "", $1); print $1 }
+  ' "$1/pubspec.yaml")
+  for dep in $deps; do
+    [ -f "packages/$dep/pubspec.yaml" ] || continue
+    version=$(awk '/^version:/ { print $2 }' "packages/$dep/pubspec.yaml")
+    code=$(curl -s -o /dev/null -w '%{http_code}' \
+      "https://pub.dev/api/packages/$dep/versions/$version")
+    [ "$code" = 404 ] && printf ' %s %s' "$dep" "$version"
+  done
+}
+
 step "principles" bash tool/check_principles.sh
 
 for dir in packages/*/; do
@@ -47,6 +67,12 @@ for dir in packages/*/; do
   else
     step "analyze $pkg" bash -c "cd '$dir' && dart analyze --fatal-infos"
     step "test $pkg"    bash -c "cd '$dir' && dart test --reporter=$reporter"
+    # A pure Dart example is a script: running it proves it still works.
+    for script in "$dir"example/*.dart; do
+      [ -f "$script" ] || continue
+      step "run $pkg/example/$(basename "$script")" \
+        bash -c "cd '$dir' && dart run 'example/$(basename "$script")' >/dev/null"
+    done
   fi
   # The example is documentation that runs: its tests guard the scenarios.
   if [ -d "$example/test" ]; then
@@ -54,8 +80,17 @@ for dir in packages/*/; do
   fi
 
   if ! $fast; then
-    dart pub global activate pana >/dev/null
-    step "pana $pkg" bash -c "cd '$dir' && dart pub global run pana --exit-code-threshold 20 ."
+    # pana scores the package as pub.dev would, so it ignores
+    # pubspec_overrides.yaml and cannot resolve a sibling that is not
+    # published yet. Skip it until every sibling's version is on pub.dev.
+    missing=$(unpublished_siblings "$dir")
+    if [ -n "$missing" ]; then
+      echo "==> pana $pkg"
+      echo "SKIPPED: not on pub.dev yet:$missing"
+    else
+      dart pub global activate pana >/dev/null
+      step "pana $pkg" bash -c "cd '$dir' && dart pub global run pana --exit-code-threshold 20 ."
+    fi
   fi
 done
 

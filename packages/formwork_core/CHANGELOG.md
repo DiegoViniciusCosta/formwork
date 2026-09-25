@@ -6,3 +6,5 @@
   validators, `missingFields`, `missingKeys` and `FormEngine`; their
   history is in the `formwork` changelog, up to its 0.1.0 and its
   Unreleased entries before this split.
+- An example: a Dart backend validating a submitted payload against the
+  same catalog the app renders.

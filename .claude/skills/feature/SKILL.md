@@ -33,7 +33,8 @@ Write failing tests that describe the behavior:
 ## 4. Implement
 
 Smallest change that makes the tests pass. Engine logic goes in
-`lib/src/core`; `lib/src/flutter` only adapts it.
+`formwork_core` (`lib/src/engine`, or `lib/src/catalog` for what only JSON
+catalogs need); `formwork/lib/src/flutter` only adapts it.
 
 ## 5. Verify
 

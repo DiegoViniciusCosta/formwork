@@ -11,7 +11,8 @@ state, validation and rendering, one field at a time.
 - **Any design system.** Field builders receive a tiny contract (`value`,
   `errorText`, `enabled`, `onChanged`) that any component can satisfy. The
   core ships no visual widgets; a Material kit lives in `formwork_material`.
-- **Any state management.** The core is pure Dart, with no Flutter import.
+- **Any state management.** The core is pure Dart, in its own package
+  (`formwork_core`), with no Flutter dependency.
   State is an immutable `FormSnapshot`, so Bloc, Riverpod, Provider or a
   plain `ValueNotifier` all work through a small adapter. No dependency is
   forced on your app.

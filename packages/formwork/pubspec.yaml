@@ -16,11 +16,13 @@ environment:
   sdk: ^3.5.0
   flutter: ">=3.35.0"
 
-# Nothing but Flutter, on purpose: every dependency here becomes a
-# potential version conflict in every app that uses the package.
+# Nothing but Flutter and formwork's own core, on purpose: every
+# dependency here becomes a potential version conflict in every app that
+# uses the package.
 dependencies:
   flutter:
     sdk: flutter
+  formwork_core: ^0.1.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

@@ -2,10 +2,11 @@
 
 Root rules in `/AGENTS.md` apply. Additional rules for this package:
 
-- `lib/src/core/` is the engine: pure Dart, deterministic, no I/O, no
-  timers, no Flutter. It must be usable from a Dart CLI or server.
+- The engine lives in `packages/formwork_core`, not here. `lib/formwork.dart`
+  re-exports it, so an app adds one dependency.
 - `lib/src/flutter/` only adapts the engine to widgets. No validation or
-  visibility logic lives here; if you need it, it belongs in the engine.
+  visibility logic lives here; if you need it, it belongs in
+  `formwork_core`.
 - `FormSnapshot` is the only state crossing the core/Flutter boundary.
 - Field builders receive only `FieldContext`. Anything a design system
   needs must be added there, never read from elsewhere.

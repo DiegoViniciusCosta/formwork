@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:formwork_core/formwork_core.dart';
 
-import '../core/field_config.dart';
-import '../core/form_engine.dart';
 import 'dynamic_form_controller.dart';
 import 'field_registry.dart';
 

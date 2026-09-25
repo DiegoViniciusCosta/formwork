@@ -1,6 +1,4 @@
 # Local development only; pub publish ignores this file.
 dependency_overrides:
-  formwork:
-    path: ../formwork
   formwork_core:
     path: ../formwork_core

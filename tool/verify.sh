@@ -27,15 +27,27 @@ step "principles" bash tool/check_principles.sh
 
 for dir in packages/*/; do
   pkg=$(basename "$dir")
-  (cd "$dir" && flutter pub get >/dev/null) || { echo "FAILED: pub get $pkg"; status=1; continue; }
+  # Pure Dart packages (formwork_core) are checked with dart alone, which
+  # proves a Dart backend can use them without Flutter.
+  if grep -qE '^ +sdk: flutter' "$dir/pubspec.yaml"; then
+    tool=flutter
+  else
+    tool=dart
+  fi
+  (cd "$dir" && $tool pub get >/dev/null) || { echo "FAILED: pub get $pkg"; status=1; continue; }
   example="$dir/example"
   if [ -d "$example" ]; then
     (cd "$example" && flutter pub get >/dev/null) || { echo "FAILED: pub get $pkg/example"; status=1; }
   fi
 
   step "format $pkg"  dart format --output=none --set-exit-if-changed "$dir"
-  step "analyze $pkg" bash -c "cd '$dir' && flutter analyze --no-pub"
-  step "test $pkg"    bash -c "cd '$dir' && flutter test --no-pub --reporter=$reporter"
+  if [ "$tool" = flutter ]; then
+    step "analyze $pkg" bash -c "cd '$dir' && flutter analyze --no-pub"
+    step "test $pkg"    bash -c "cd '$dir' && flutter test --no-pub --reporter=$reporter"
+  else
+    step "analyze $pkg" bash -c "cd '$dir' && dart analyze --fatal-infos"
+    step "test $pkg"    bash -c "cd '$dir' && dart test --reporter=$reporter"
+  fi
   # The example is documentation that runs: its tests guard the scenarios.
   if [ -d "$example/test" ]; then
     step "test $pkg/example" bash -c "cd '$example' && flutter test --no-pub --reporter=$reporter"

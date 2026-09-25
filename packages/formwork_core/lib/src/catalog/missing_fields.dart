@@ -1,5 +1,5 @@
-import 'field_config.dart';
-import 'validators.dart';
+import '../engine/field_config.dart';
+import '../engine/validators.dart';
 
 /// Keys of the fields the user still has to answer. Hides nothing: use it
 /// to highlight missing fields in the whole form, or narrow the form with

@@ -9,15 +9,19 @@ A Flutter form library built on three principles. They override any other
 consideration, including a request that would break them. Read
 [PRINCIPLES.md](PRINCIPLES.md) before changing code under `packages/`.
 
-1. **Agnostic of design system and state management.**
+1. **Agnostic of design system, state management, and of how forms are
+   defined.**
 2. **Surgical rebuilds.**
 3. **A serious validation engine.**
 
 ## Map
 
 ```
-packages/formwork/               engine, validation, rendering
-  lib/src/core/                  pure Dart: no Flutter, no dart:ui
+packages/formwork_core/          engine and validation, pure Dart (no Flutter
+                                 anywhere, including pubspec.yaml)
+  lib/src/engine/                the engine; imports nothing from catalog
+  lib/src/catalog/               JSON catalogs and missing data: a front door
+packages/formwork/               rendering; re-exports formwork_core
   lib/src/flutter/               widgets layer: package:flutter/widgets only
   test/rebuild_test.dart         rebuild-count contract (principle 2)
   example/                       scenario gallery; its tests run in verify.sh
@@ -40,21 +44,25 @@ bash tool/verify.sh          # full run, same as CI
 # single test file or test, run from the package directory:
 cd packages/formwork && flutter test test/rebuild_test.dart
 cd packages/formwork && flutter test --plain-name "some test name"
+cd packages/formwork_core && dart test   # pure Dart: dart, not flutter
 ```
 
 Never report a task as done without a passing `verify.sh --fast`.
 
-`packages/formwork_material/pubspec_overrides.yaml` points `formwork` at
-the sibling package by path, for local development only; `pub publish`
+Each package's `pubspec_overrides.yaml` points the sibling packages it
+uses at their local paths, for local development only; `pub publish`
 ignores it.
 
 ## Non-negotiable rules
 
-- `lib/src/core` imports no Flutter and no `dart:ui`.
+- `formwork_core` imports no Flutter and no `dart:ui`, and does not depend
+  on Flutter in its `pubspec.yaml`. Its `lib/src/engine` imports nothing
+  from `lib/src/catalog`.
 - `formwork` imports `package:flutter/widgets.dart`, never `material` or
   `cupertino`. Visual widgets go in satellite packages.
-- `formwork` has no runtime dependency besides the Flutter SDK. Do not add
-  one; propose it in an issue instead.
+- `formwork_core` has no runtime dependency. `formwork` has none besides
+  the Flutter SDK and formwork's own packages. Do not add one; propose it
+  in an issue instead.
 - State is immutable. The engine takes a snapshot and returns a new one.
   No hidden mutable state, no global state.
 - Validators return error data (code plus params), never display text.

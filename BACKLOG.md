@@ -26,16 +26,6 @@ quebra limpa (a 0.1 não foi publicada).
 Pequeno. Deve ser aprovado antes da implementação, porque mexe no
 `FieldProps`.
 
-### 3. ⬜ Separar os pacotes (`formwork_core`)
-Mecânico, sem mudança de comportamento: mover `lib/src/core` para
-`packages/formwork_core`, fazer o `formwork` depender dele e reexportá-lo,
-e adicionar as regras novas ao `check_principles.sh`. Entram aqui as duas
-mudanças de regra aprovadas no 0007: o título do princípio 1 e a
-dependência entre os próprios pacotes (`PRINCIPLES.md`, `AGENTS.md`,
-hook e `principles-reviewer`). Todos os testes continuam verdes, e o
-`formwork_core` passa a ser testado com `dart test`, sem Flutter.
-Pode começar já.
-
 ### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
 Na ordem da "Implementation order" do 0001, e dentro dela:
 - **0007:**
@@ -57,7 +47,7 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
 Inclui a regra do elo do meio para condições de vários campos, decidida
 no 0003.
 
-Depende de: 2 e 3.
+Depende de: 2.
 
 ### 5. ⬜ Aplicar os nomes do 0004 na mesma versão
 Inclui os builders do `formwork_material` e a troca de `FieldContext` por
@@ -124,6 +114,14 @@ deixa de precisar escrever JSON.
 
 ## Perguntas abertas sem data (não bloqueiam nada acima)
 
+- **`pana` no `verify.sh` completo (CI):** o `pana` ignora o
+  `pubspec_overrides.yaml`, então falha em todo pacote que depende de um
+  irmão não publicado. Já falhava no `formwork_material` (depende do
+  `formwork`); desde a separação, falha também no `formwork` (depende do
+  `formwork_core`). O `formwork_core` passa (150/160). Opções: pular o
+  `pana` nesses pacotes até a primeira publicação, ou aceitar o CI
+  vermelho até lá. O `--fast` não roda o `pana`.
+
 - **Dados antigos no servidor:** um campo que fica oculto não vai no
   payload, e o servidor mantém o valor antigo. Mandar `null` ou deixar com
   o servidor? (0003, pergunta 2)
@@ -149,6 +147,11 @@ deixa de precisar escrever JSON.
 - Design docs 0001 a 0006 aceitos (2026-09-23), com os trade-offs de
   cada um. Melhorias ficam para depois da fundação.
 - Decidido: o elo do meio com condições de vários campos (0003).
+- Pacotes separados (2026-09-25): `formwork_core` em Dart puro, testado
+  com `dart test`; o `formwork` o reexporta. Regras do 0007 aplicadas no
+  `PRINCIPLES.md`, nos `AGENTS.md`, no hook, no `check_principles.sh` e no
+  `principles-reviewer`. O `missing_fields` já está em `src/catalog`; o
+  `FormConfig.fromMap` sai do engine no item 4.
 - 0007 aceito (2026-09-25): três pacotes, registro em tempo de execução,
   HAMT por caminho, `builder:` por campo. Erros do servidor em caminhos
   nunca registrados aparecem, mas não bloqueiam o envio.

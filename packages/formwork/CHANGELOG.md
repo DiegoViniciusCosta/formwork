@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **Breaking:** the engine moved to a new pure Dart package,
+  `formwork_core` (design doc 0007), so a Dart backend can validate the
+  same catalogs without Flutter. `package:formwork/formwork.dart`
+  re-exports it, so Flutter apps change nothing.
+  `package:formwork/core.dart` is gone: import
+  `package:formwork_core/formwork_core.dart` instead.
 - **Breaking:** `TextControllerBinding` is now generic and follows the
   value (design doc 0005). It takes `value`, `onChanged`, and optional
   `parse` and `format`, instead of `initialText`; its builder gets a third

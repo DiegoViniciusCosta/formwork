@@ -12,8 +12,10 @@ Start with `git diff` (and `git diff --staged`) to see the change. Read
 
 Check each principle:
 
-1. **Agnostic.** Flutter or `dart:ui` imports in `lib/src/core`?
-   `material`/`cupertino` in `formwork`? New runtime dependencies? Does a
+1. **Agnostic.** Flutter or `dart:ui` in `formwork_core` (imports or
+   `pubspec.yaml`)? Does `formwork_core/lib/src/engine` import
+   `lib/src/catalog`? `material`/`cupertino` in `formwork`? New runtime
+   dependencies? Does a
    builder need something that is not in `FieldContext`? Does anything
    assume a specific state management approach?
 2. **Surgical rebuilds.** Can a local change now rebuild other fields or

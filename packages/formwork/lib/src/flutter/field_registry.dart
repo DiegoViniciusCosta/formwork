@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import '../core/field_config.dart';
+import 'package:formwork_core/formwork_core.dart';
 
 /// What a field builder receives. Small on purpose: any component,
 /// including design-system ones, can satisfy it.

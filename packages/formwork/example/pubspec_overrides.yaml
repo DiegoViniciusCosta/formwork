@@ -2,3 +2,7 @@
 dependency_overrides:
   formwork:
     path: ../
+  formwork_core:
+    path: ../../formwork_core
+  formwork_material:
+    path: ../../formwork_material

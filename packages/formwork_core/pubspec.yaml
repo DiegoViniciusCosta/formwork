@@ -1,0 +1,23 @@
+name: formwork_core
+description: >-
+  The formwork form engine in pure Dart: field catalogs, validation and
+  visibility, usable from Flutter apps and Dart backends alike.
+version: 0.1.0
+repository: https://github.com/<your-user>/formwork/tree/main/packages/formwork_core
+issue_tracker: https://github.com/<your-user>/formwork/issues
+topics:
+  - form
+  - forms
+  - dynamic-forms
+  - server-driven-ui
+  - validation
+
+environment:
+  sdk: ^3.5.0
+
+# No runtime dependency, on purpose: a Dart backend depends on this
+# package alone, and every dependency here would reach every app too.
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

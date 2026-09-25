@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
-
-import '../core/form_engine.dart';
+import 'package:formwork_core/formwork_core.dart';
 
 /// Minimal [FormEngine] adapter using only Flutter, for apps without a
 /// state management package.

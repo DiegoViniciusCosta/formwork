@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:formwork/core.dart';
+import 'package:formwork_core/formwork_core.dart';
+import 'package:test/test.dart';
 
 final catalog = FormConfig.fromMap({
   'fields': [

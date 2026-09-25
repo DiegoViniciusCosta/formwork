@@ -7,17 +7,21 @@ Each principle has a rule, what it forbids, and how it is verified. A
 principle that is not verified automatically will erode, so "verified by"
 distinguishes what CI enforces today from what is planned.
 
-## 1. Agnostic of design system and state management
+## 1. Agnostic of design system, state management, and of how forms are defined
 
 **Rule.** Everything a field needs to render arrives through `FieldContext`.
 State enters and leaves only as an immutable `FormSnapshot` plus callbacks.
 Nothing requires a specific provider, `InheritedWidget` or package.
 
 **Forbids.**
-- Flutter or `dart:ui` imports in `lib/src/core`.
+- Flutter or `dart:ui` in `formwork_core`, in imports or in its
+  `pubspec.yaml`. A Dart backend depends on it alone.
+- The engine (`formwork_core/lib/src/engine`) importing the catalog
+  (`lib/src/catalog`). JSON is one front door, not the center.
 - `material.dart` or `cupertino.dart` in `formwork`. Visual kits are
   satellite packages (`formwork_material`, ...).
-- Runtime dependencies besides the Flutter SDK.
+- Runtime dependencies besides the Flutter SDK and formwork's own
+  packages. `formwork_core` has none at all.
 
 **Verified by.**
 - Enforced: `tool/check_principles.sh` in CI.
@@ -61,7 +65,7 @@ the size of the form.
 **Verified by.**
 - Enforced: incremental-versus-full equivalence test over a fixed sequence.
 - Planned: property test over random change sequences, race tests with
-  `fakeAsync`, minimum coverage threshold for `lib/src/core`.
+  `fakeAsync`, minimum coverage threshold for `formwork_core`.
 
 ## The feature filter
 

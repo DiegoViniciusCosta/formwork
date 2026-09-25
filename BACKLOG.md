@@ -16,15 +16,21 @@ fundação já suporte, no futuro, formulários feitos de widgets
 ("everything is a widget"). Os itens 3 a 5 saem numa única versão com
 quebra limpa (a 0.1 não foi publicada).
 
-### 2. ⬜ Design doc: estado do formulário na UI, e foco
-- Um helper para a UI reagir ao estado do formulário: botão de enviar
-  desabilitado, "enviando…", contagem de erros. Hoje isso exige um
-  `ValueListenableBuilder` montado na mão.
-- Levar o foco ao primeiro campo com erro ao enviar. O builder precisa
-  receber um `FocusNode` (entra no `FieldProps` do 0004).
+### 2. 🟨 Aprovar o 0008 (estado do formulário na UI, e foco)
+`docs/design/0008-form-status-and-focus.md`:
+- `FormStatus` no snapshot (`errorCount`, `submitCount`, `submitting`,
+  `validating`, `dirty`), que só muda quando um desses fatos muda;
+  `controller.status` e `FormStatusBuilder` para a UI;
+- enviar vira três transições do engine: `submit` (como hoje),
+  `startSubmitting` e `completeSubmit`, que aplica os erros do servidor;
+  um segundo envio durante o primeiro é ignorado; `controller.submitWith`
+  faz tudo de uma vez;
+- `FieldProps` ganha `focusNode`, criado pelo `FieldView`; um `FormFocus`
+  leva o foco ao primeiro campo com erro, na ordem de registro.
 
-Pequeno. Deve ser aprovado antes da implementação, porque mexe no
-`FieldProps`.
+Três perguntas abertas no doc: o nome do `submitWith`, marcar `touched` ao
+perder o foco, e contar à parte os erros do servidor em caminhos não
+registrados.
 
 ### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
 Na ordem da "Implementation order" do 0001, e dentro dela:

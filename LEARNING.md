@@ -56,3 +56,30 @@
     aparece na tela, e por quê?
   - Um campo de data com `parse` para `dd/MM/yyyy` e `format` padrão
     (`toString`): o que dá errado, e quando o usuário percebe?
+
+### 2026-09-24 — Estruturas de dados no formwork (mini-livro)
+- **Contexto**: pedido para separar os problemas de estrutura de dados do
+  projeto, virou o mini-livro "Estruturas que Lembram":
+  https://claude.ai/artifact/Wm3AfcZJbHVsXoZ2h5X75P
+- **Conceitos** (um capítulo cada):
+  1. imutabilidade ingênua custa O(n): visão x cópia, reaproveitar o que
+     não mudou;
+  2. aliasing: compartilhar só é seguro sem porta de escrita;
+  3. estruturas persistentes: trie de 32 vias e HAMT (bitmap + popcount);
+     a escolha depende do que se sabe sobre as chaves, não da velocidade;
+  4. grafos: regra local x fecho transitivo (cadeias de visibilidade);
+  5. índice reverso, e o custo quadrático escondido em `List.contains`;
+  6. conjunto de visitados por busca; detectar x decidir;
+  7. "entre dois pontos" = interseção de duas alcançabilidades;
+  8. identidade como detector de mudança; igualdade por valor numa
+     hierarquia aberta é uma armadilha.
+- **No código**: `packages/formwork/lib/src/core/form_engine.dart`
+  (`change`, `_withErrors`, `_buildChains`, `_buildDependents`),
+  `missing_fields.dart`, design docs 0002 e 0007.
+- **Lacunas**: sem checkpoint: o livro tem os exercícios com respostas
+  escondidas. Revisar depois.
+- **Para revisar**:
+  - Por que devolver o mesmo snapshot num re-registro igual economiza mais
+    do que "não mudar os valores"? Em qual camada?
+  - Grafo `a → c`, `b → c`, `c → d`, com `a` e `d` faltantes: quais campos
+    conhecidos entram? O `b` entra?

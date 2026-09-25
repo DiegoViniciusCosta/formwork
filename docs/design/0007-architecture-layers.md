@@ -1,6 +1,6 @@
 # 0007: Architecture: one engine, several front doors
 
-Status: **draft**
+Status: **accepted** (2026-09-25)
 
 ## Problem
 
@@ -205,7 +205,8 @@ map, shared across snapshots, as 0002 decided.
   stale. This is principle 3's race-free rule.
 - **Server errors** for a path that is not registered are kept, and
   applied when the field registers. The snapshot lists them, so an app
-  can show errors for fields that are not on screen.
+  can show errors for fields that are not on screen. They do not
+  block submit (see "Decided with acceptance").
 
 ### 7. `FieldView` in this release: a per-field `builder:`
 
@@ -331,12 +332,22 @@ The engine API above is what that doc will build on.
 
 ## Open questions
 
-1. **Server errors for paths that never register.** They stay listed in
-   the snapshot. Should they also block submit, or only be shown?
-2. **Hot reload with custom validators created inline.** Every hot reload
+1. **Hot reload with custom validators created inline.** Every hot reload
    replaces them and revalidates the field. That is correct, but it could
    be noisy. The widget-first doc may compare validators by type and
    parameters.
-3. **Package names.** `formwork_core` was free on pub.dev on 2026-09-24,
+2. **Package names.** `formwork_core` was free on pub.dev on 2026-09-24,
    as `formwork` and `formwork_material` were the day before. Check again
    right before the first publish.
+
+## Decided with acceptance
+
+1. **Server errors for paths that never register** are shown, and do not
+   block submit. The user has no field on screen to fix them, so blocking
+   would be a dead end, and the server rejects the payload again anyway.
+   The snapshot keeps listing them, so an app that wants to block can do
+   it in its own submit handler.
+2. **The two rule changes of §1** (the title of principle 1, and
+   dependencies between formwork's own packages) are approved. They land
+   in PRINCIPLES.md, AGENTS.md and the tooling with the package split,
+   once `formwork_core` exists.

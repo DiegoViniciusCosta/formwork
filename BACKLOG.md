@@ -16,18 +16,6 @@ fundação já suporte, no futuro, formulários feitos de widgets
 ("everything is a widget"). Os itens 3 a 5 saem numa única versão com
 quebra limpa (a 0.1 não foi publicada).
 
-### 1. 🟨 Aprovar o 0007 (arquitetura: um motor, várias portas de entrada)
-`docs/design/0007-architecture-layers.md`:
-- três pacotes (`formwork_core` em Dart puro, `formwork` e
-  `formwork_material`);
-- o engine registra e remove campos em tempo de execução;
-- armazenamento por caminho (HAMT), com as mesmas metas do 0002;
-- o `FieldView` ganha `builder:` por campo.
-
-Ele altera os docs 0001, 0002, 0003, 0004 e 0006, e duas regras do
-projeto: o título do princípio 1, e a permissão para o `formwork`
-depender dos próprios pacotes.
-
 ### 2. ⬜ Design doc: estado do formulário na UI, e foco
 - Um helper para a UI reagir ao estado do formulário: botão de enviar
   desabilitado, "enviando…", contagem de erros. Hoje isso exige um
@@ -41,10 +29,12 @@ Pequeno. Deve ser aprovado antes da implementação, porque mexe no
 ### 3. ⬜ Separar os pacotes (`formwork_core`)
 Mecânico, sem mudança de comportamento: mover `lib/src/core` para
 `packages/formwork_core`, fazer o `formwork` depender dele e reexportá-lo,
-e adicionar as regras novas ao `check_principles.sh`. Todos os testes
-continuam verdes, e o `formwork_core` passa a ser testado com `dart test`,
-sem Flutter.
-Depende de: 1.
+e adicionar as regras novas ao `check_principles.sh`. Entram aqui as duas
+mudanças de regra aprovadas no 0007: o título do princípio 1 e a
+dependência entre os próprios pacotes (`PRINCIPLES.md`, `AGENTS.md`,
+hook e `principles-reviewer`). Todos os testes continuam verdes, e o
+`formwork_core` passa a ser testado com `dart test`, sem Flutter.
+Pode começar já.
 
 ### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006 e 0007)
 Na ordem da "Implementation order" do 0001, e dentro dela:
@@ -67,7 +57,7 @@ Na ordem da "Implementation order" do 0001, e dentro dela:
 Inclui a regra do elo do meio para condições de vários campos, decidida
 no 0003.
 
-Depende de: 1, 2 e 3.
+Depende de: 2 e 3.
 
 ### 5. ⬜ Aplicar os nomes do 0004 na mesma versão
 Inclui os builders do `formwork_material` e a troca de `FieldContext` por
@@ -159,3 +149,6 @@ deixa de precisar escrever JSON.
 - Design docs 0001 a 0006 aceitos (2026-09-23), com os trade-offs de
   cada um. Melhorias ficam para depois da fundação.
 - Decidido: o elo do meio com condições de vários campos (0003).
+- 0007 aceito (2026-09-25): três pacotes, registro em tempo de execução,
+  HAMT por caminho, `builder:` por campo. Erros do servidor em caminhos
+  nunca registrados aparecem, mas não bloqueiam o envio.

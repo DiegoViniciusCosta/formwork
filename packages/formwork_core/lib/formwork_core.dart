@@ -7,5 +7,8 @@ library;
 
 export 'src/catalog/missing_fields.dart';
 export 'src/engine/field_config.dart';
+export 'src/engine/field_path.dart' show FieldPath;
+export 'src/engine/field_state.dart' show FieldState;
 export 'src/engine/form_engine.dart';
+export 'src/engine/validation_error.dart';
 export 'src/engine/validators.dart';

@@ -67,7 +67,8 @@ typedef FieldTypeFactory = FieldDef<Object?> Function(FieldJson field);
 
 /// The field factories of a catalog, by `"type"` (design doc 0006 §2).
 ///
-/// Built-in types: `text`, `number`, `checkbox` and `dropdown`. A custom
+/// Built-in types: `text`, with its variants `email` and `password`,
+/// `number`, `checkbox` and `dropdown`. A custom
 /// type registers a factory that builds its definition from a [FieldJson].
 class FieldTypeRegistry {
   final Map<String, FieldTypeFactory> _custom = {};
@@ -208,6 +209,18 @@ final class FormCatalog extends FormDef {
   /// The version of the catalog format.
   final int schemaVersion;
 }
+
+/// [catalog] with only the fields in [keep], in order, keeping its issues
+/// and schema version. Catalog-side; the package barrel does not export it.
+FormCatalog narrowCatalog(FormCatalog catalog, Set<FieldPath> keep) =>
+    FormCatalog._(
+      [
+        for (final def in catalog.fields)
+          if (keep.contains(def.path)) def,
+      ],
+      catalog.issues,
+      catalog.schemaVersion,
+    );
 
 /// One [FormCatalog.fromJson] call.
 final class _Reader {
@@ -393,19 +406,9 @@ List<Object?> _list(Object? json, String name) => switch (json) {
     };
 
 final Map<String, FieldTypeFactory> _builtIns = {
-  'text': (f) => TextFieldDef(
-        f.key,
-        label: f.label,
-        hint: f.hint,
-        required: f.required,
-        visibleWhen: f.visibleWhen,
-        enabledWhen: f.enabledWhen,
-        requiredWhen: f.requiredWhen,
-        validators: f.validators<String>(),
-        initialValue: f.initialValue as String?,
-        extra: f.extra,
-        messages: f.messages,
-      ),
+  'text': _text,
+  'email': _text,
+  'password': _text,
   'number': (f) => NumberFieldDef(
         f.key,
         label: f.label,
@@ -455,3 +458,18 @@ final Map<String, FieldTypeFactory> _builtIns = {
         messages: f.messages,
       ),
 };
+
+FieldDef<Object?> _text(FieldJson f) => TextFieldDef(
+      f.key,
+      type: f.json['type']! as String,
+      label: f.label,
+      hint: f.hint,
+      required: f.required,
+      visibleWhen: f.visibleWhen,
+      enabledWhen: f.enabledWhen,
+      requiredWhen: f.requiredWhen,
+      validators: f.validators<String>(),
+      initialValue: f.initialValue as String?,
+      extra: f.extra,
+      messages: f.messages,
+    );

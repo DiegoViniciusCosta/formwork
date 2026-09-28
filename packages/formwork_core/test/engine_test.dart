@@ -118,9 +118,9 @@ void main() {
   group('unregistering', () {
     test('the field leaves validation and the payload', () {
       var s = form([_Text('a', required: true), _Text('b')]);
-      expect(s.isValid, isFalse);
+      expect(s.status.isValid, isFalse);
       s = engine.unregister(s, p('a'));
-      expect(s.isValid, isTrue);
+      expect(s.status.isValid, isTrue);
       expect(s.payload().keys, ['b']);
       expect(s.stateOf(_Text('a')), isNull);
       expect(s.changedPaths, {p('a')});
@@ -255,7 +255,7 @@ void main() {
       final state = s.stateOf(_Text('cpf'))!;
       expect(state.enabled, isFalse);
       expect(state.error, isNull);
-      expect(s.isValid, isTrue);
+      expect(s.status.isValid, isTrue);
       expect(s.payload().keys, ['cpf']);
     });
   });
@@ -324,12 +324,58 @@ void main() {
       final before = form([_Text('a', required: true)]);
       engine.change(before, p('a'), 'x');
       expect(before.stateOf(_Text('a'))!.value, isNull);
-      expect(before.isValid, isFalse);
+      expect(before.status.isValid, isFalse);
     });
 
     test('setting the same value again returns the identical snapshot', () {
       final s = engine.change(form([_Text('a')]), p('a'), 'x');
       expect(identical(engine.change(s, p('a'), 'x'), s), isTrue);
+    });
+  });
+
+  group('status and submit', () {
+    test('the status counts errors and dirty fields', () {
+      var s = form([_Text('a', required: true), _Text('b')]);
+      expect(s.status, const FormStatus(errorCount: 1));
+      s = engine.change(s, p('b'), 'x');
+      expect(s.status, const FormStatus(errorCount: 1, dirty: true));
+      s = engine.change(s, p('a'), 'y');
+      expect(s.status.isValid, isTrue);
+    });
+
+    test('the status stays identical while its facts do not change', () {
+      var s = form([_Text('a')]);
+      s = engine.change(s, p('a'), 'x');
+      final status = s.status;
+      s = engine.change(s, p('a'), 'xy');
+      expect(identical(s.status, status), isTrue);
+    });
+
+    test('submit returns the payload only when valid', () {
+      var s = form([_Text('a', required: true)]);
+      var result = engine.submit(s);
+      expect(result.payload, isNull);
+      expect(result.snapshot.status.submitAttempted, isTrue);
+
+      s = engine.change(result.snapshot, p('a'), 'x');
+      result = engine.submit(s);
+      expect(result.payload, {'a': 'x'});
+      expect(result.snapshot.status.submitCount, 2);
+    });
+
+    test('the first attempt gives new states to the fields with an error', () {
+      final s = form([
+        _Text('bad', required: true),
+        _Text('fine'),
+        _Text('hidden', required: true, visibleWhen: eq('x', 'y')),
+      ]);
+      final first = engine.submit(s).snapshot;
+      expect(first.changedPaths, {p('bad')});
+      expect(identical(first.stateOf(_Text('fine')), s.stateOf(_Text('fine'))),
+          isTrue);
+
+      final second = engine.submit(first).snapshot;
+      expect(second.changedPaths, isEmpty);
     });
   });
 
@@ -349,7 +395,7 @@ void main() {
       for (final def in defs) {
         _expectSameState(one.stateOf(def)!, all.stateOf(def)!, '$def');
       }
-      expect(one.errorCount, all.errorCount);
+      expect(one.status.errorCount, all.status.errorCount);
     }
   });
 
@@ -382,7 +428,7 @@ void main() {
         for (final def in defs) {
           _expectSameState(s.stateOf(def)!, scratch.stateOf(def)!, '$def');
         }
-        expect(s.errorCount, scratch.errorCount);
+        expect(s.status.errorCount, scratch.status.errorCount);
         // Registering again appends, so compare the payload as a map.
         expect(s.payload(), equals(scratch.payload()));
       }

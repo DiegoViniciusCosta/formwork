@@ -5,6 +5,7 @@ import 'dependency_graph.dart';
 import 'field_def.dart';
 import 'field_path.dart';
 import 'field_state.dart';
+import 'form_status.dart';
 import 'persistent_map.dart';
 
 /// The state of a form at one moment: every registered field's
@@ -26,7 +27,9 @@ final class FormSnapshot {
     required PersistentMap<FieldPath, Object?> undecodable,
     required DependencyGraph graph,
     required this.changedPaths,
-    required int errorCount,
+    required this.status,
+    required PersistentMap<FieldPath, bool> errored,
+    required int dirtyCount,
     required _VisibleList visible,
   })  : _entries = entries,
         _order = order,
@@ -35,7 +38,8 @@ final class FormSnapshot {
         _retired = retired,
         _undecodable = undecodable,
         _graph = graph,
-        _errorCount = errorCount,
+        _errored = errored,
+        _dirtyCount = dirtyCount,
         _visible = visible;
 
   /// Registered fields.
@@ -58,10 +62,17 @@ final class FormSnapshot {
 
   final DependencyGraph _graph;
 
-  /// The active fields with an error, shown or not.
-  final int _errorCount;
+  /// The paths of the fields with an error, as a set.
+  final PersistentMap<FieldPath, bool> _errored;
+
+  /// How many fields differ from their initial value.
+  final int _dirtyCount;
 
   final _VisibleList _visible;
+
+  /// The facts about the whole form (design doc 0008 §1). The identical
+  /// status is kept until one of them changes.
+  final FormStatus status;
 
   /// The fields whose [FieldState] is not identical to the one in the
   /// previous snapshot: registered, replaced, changed or recomputed, and
@@ -106,15 +117,9 @@ final class FormSnapshot {
   }
 }
 
-/// Engine-side reads of a [FormSnapshot], for tests and for the form
-/// status of design doc 0008. Not exported.
-extension FormSnapshotInternals on FormSnapshot {
-  /// The active fields with an error, shown or not.
-  int get errorCount => _errorCount;
-
-  /// Whether no active field has an error.
-  bool get isValid => _errorCount == 0;
-}
+/// The result of [FormEngine.submit]: the next snapshot and, when the form
+/// is valid, the payload to send.
+typedef SubmitResult = ({FormSnapshot snapshot, Map<String, Object?>? payload});
 
 /// Pure form rules: takes a snapshot and returns a new one. Holds no
 /// state, not even the fields: definitions live in the snapshot, so they
@@ -140,7 +145,9 @@ final class FormEngine {
         undecodable: const PersistentMap.empty(),
         graph: const DependencyGraph.empty(),
         changedPaths: const {},
-        errorCount: 0,
+        status: const FormStatus(),
+        errored: const PersistentMap.empty(),
+        dirtyCount: 0,
         visible: _VisibleList(),
       );
 
@@ -202,6 +209,21 @@ final class FormEngine {
   /// Returns [s] when nothing changes.
   FormSnapshot change(FormSnapshot s, FieldPath path, Object? value) =>
       (_Transition(s)..change(path, value)).finish();
+
+  /// Marks a submit attempt and returns the payload when the form is valid
+  /// (design docs 0004 and 0008 §2). Sending it is up to the caller.
+  ///
+  /// The first attempt shows every field's error: those fields get new
+  /// states, so their views rebuild. While `status.submitting`, returns
+  /// [s] itself and no payload, which guards against a double tap.
+  SubmitResult submit(FormSnapshot s) {
+    if (s.status.submitting) return (snapshot: s, payload: null);
+    final next = (_Transition(s)..submit()).finish();
+    return (
+      snapshot: next,
+      payload: next.status.isValid ? next.payload() : null,
+    );
+  }
 }
 
 /// A registered field: its state, registration order and the value it had
@@ -252,7 +274,9 @@ final class _Transition {
         retired = from._retired,
         undecodable = from._undecodable,
         graph = from._graph,
-        errorCount = from._errorCount;
+        errored = from._errored,
+        dirtyCount = from._dirtyCount,
+        submitCount = from.status.submitCount;
 
   final FormSnapshot from;
   PersistentMap<FieldPath, _Entry> entries;
@@ -262,7 +286,9 @@ final class _Transition {
   PersistentMap<FieldPath, _Retired> retired;
   PersistentMap<FieldPath, Object?> undecodable;
   DependencyGraph graph;
-  int errorCount;
+  PersistentMap<FieldPath, bool> errored;
+  int dirtyCount;
+  int submitCount;
 
   final changed = <FieldPath>{};
   bool activeSetChanged = false;
@@ -355,7 +381,8 @@ final class _Transition {
     );
     graph = graph.remove(path);
     undecodable = undecodable.remove(path);
-    if (old.state.error != null) errorCount--;
+    errored = errored.remove(path);
+    if (old.state.dirty) dirtyCount--;
     if (old.state.visible) activeSetChanged = true;
     changed.add(path);
     _enqueueReaders(path);
@@ -406,9 +433,23 @@ final class _Transition {
     _enqueueReaders(path);
   }
 
+  void submit() {
+    submitCount++;
+    if (submitCount > 1) return;
+    // The first attempt shows every error: a new state tells each of
+    // those fields' views, and nobody else.
+    for (final MapEntry(key: path) in errored.entries) {
+      final entry = entries[path]!;
+      _put(path, _Entry(entry.state.copyWith(), entry.seq, entry.initial),
+          entry.state);
+    }
+  }
+
   FormSnapshot finish() {
     _settle();
+    final status = _status();
     if (changed.isEmpty &&
+        identical(status, from.status) &&
         identical(data, from._data) &&
         identical(retired, from._retired) &&
         identical(undecodable, from._undecodable)) {
@@ -423,7 +464,9 @@ final class _Transition {
       undecodable: undecodable,
       graph: graph,
       changedPaths: Set.unmodifiable(changed),
-      errorCount: errorCount,
+      status: status,
+      errored: errored,
+      dirtyCount: dirtyCount,
       visible: activeSetChanged ? _VisibleList() : from._visible,
     );
   }
@@ -529,14 +572,35 @@ final class _Transition {
     return data[path];
   }
 
-  /// Stores [entry], keeping the error count and change tracking in step
-  /// with the state it replaces ([old], `null` for a new field).
+  /// The status after this transition: the identical one when nothing in
+  /// it changed.
+  FormStatus _status() {
+    final old = from.status;
+    final next = FormStatus(
+      errorCount: errored.length,
+      formError: old.formError,
+      submitCount: submitCount,
+      submitting: old.submitting,
+      lastSubmit: old.lastSubmit,
+      validating: old.validating,
+      dirty: dirtyCount > 0,
+    );
+    return next == old ? old : next;
+  }
+
+  /// Stores [entry], keeping the error set, dirty count and change
+  /// tracking in step with the state it replaces ([old], `null` for a new
+  /// field).
   void _put(FieldPath path, _Entry entry, FieldState? old) {
     entries = entries.put(path, entry);
     changed.add(path);
     final state = entry.state;
     if ((old?.error != null) != (state.error != null)) {
-      errorCount += state.error != null ? 1 : -1;
+      errored =
+          state.error != null ? errored.put(path, true) : errored.remove(path);
+    }
+    if ((old?.dirty ?? false) != state.dirty) {
+      dirtyCount += state.dirty ? 1 : -1;
     }
     if ((old?.visible ?? false) != state.visible) activeSetChanged = true;
   }

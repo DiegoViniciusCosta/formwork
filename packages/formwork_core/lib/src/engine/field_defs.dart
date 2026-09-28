@@ -4,11 +4,15 @@ import 'deep_equality.dart';
 import 'field_codec.dart';
 import 'field_def.dart';
 
-/// A text field: `"text"` in a catalog.
+/// A text field: `"text"` in a catalog, or a variant of it such as
+/// `"email"` or `"password"`.
 final class TextFieldDef extends FieldDef<String> {
-  /// A text field at [key]. See [FieldDef.new] for the parameters.
+  /// A text field at [key]. [type] picks the builder: `"email"` for an
+  /// e-mail keyboard, `"password"` for hidden text, or any variant a
+  /// registry knows. See [FieldDef.new] for the other parameters.
   TextFieldDef(
     super.key, {
+    this.type = 'text',
     super.label,
     super.hint,
     super.required,
@@ -22,14 +26,14 @@ final class TextFieldDef extends FieldDef<String> {
   });
 
   @override
-  String get type => 'text';
+  final String type;
 
   @override
   bool operator ==(Object other) =>
-      other is TextFieldDef && sameFieldDef(this, other);
+      other is TextFieldDef && other.type == type && sameFieldDef(this, other);
 
   @override
-  int get hashCode => fieldDefHash(this);
+  int get hashCode => Object.hash(type, fieldDefHash(this));
 }
 
 /// A number field: `"number"` in a catalog.

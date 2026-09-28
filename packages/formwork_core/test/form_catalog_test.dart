@@ -66,6 +66,21 @@ void main() {
     ]);
   });
 
+  test('email and password are variants of text', () {
+    final catalog = FormCatalog.fromJson({
+      'fields': [
+        {'key': 'email', 'type': 'email'},
+        {'key': 'secret', 'type': 'password'},
+      ],
+    });
+    expect(catalog.issues, isEmpty);
+    expect(catalog.fields, [
+      TextFieldDef('email', type: 'email'),
+      TextFieldDef('secret', type: 'password'),
+    ]);
+    expect(TextFieldDef('a', type: 'email'), isNot(TextFieldDef('a')));
+  });
+
   test('a JSON condition decoded through the field codec equals code', () {
     // The reader comes before the field it reads: order does not matter.
     final catalog = FormCatalog.fromJson({
@@ -103,7 +118,7 @@ void main() {
 
     s = engine.change(s, p('status'), MaritalStatus.married);
     expect(s.payload(), {'status': 'married', 'spouse': null});
-    expect(s.isValid, isFalse);
+    expect(s.status.isValid, isFalse);
   });
 
   test('a required validator and messages are read', () {

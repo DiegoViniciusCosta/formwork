@@ -1,5 +1,14 @@
 ## Unreleased
 
+- `FormStatus` and `SubmitOutcome` (design doc 0008 §1): the form-level
+  facts, kept identical until one changes. The new engine's `submit`
+  shows every error on the first attempt by giving those fields new
+  states, and returns the payload when valid.
+- `ErrorLocalizer`, `englishErrorLocalizer` and `localizeError` (design
+  doc 0001 §2): error codes to text, a field's own `messages` first.
+- Missing data on catalogs (design doc 0003): `catalog.missingKeys(data)`
+  and `catalog.onlyMissing(data)`, with the chain rule generalized to
+  conditions on several fields. Internal until the switch.
 - Catalogs read into typed definitions (decisions 21 and 22 of design
   doc 0001), internal until `formwork` switches to the new engine:
   `FormCatalog.fromJson` with optional `FieldTypeRegistry`,
@@ -13,7 +22,9 @@
   20):
   - `TextFieldDef`, `NumberFieldDef`, `ChoiceFieldDef<T>` with `Option`,
     and `BoolFieldDef`, with the catalog types `text`, `number`,
-    `dropdown` and `checkbox`. They compare by value.
+    `dropdown` and `checkbox`. They compare by value. `TextFieldDef` takes
+    a `type:` for variants such as `email` and `password`, which catalogs
+    keep using.
   - `FormDef`: a form as a class whose fields are members, or built from
     a list. A duplicated key throws when the form is registered.
   - Conditions from fields: `equals` and `isIn`, and on number fields

@@ -369,3 +369,18 @@ step 4:
 22. **A condition operand that does not decode** through the codec of
     the field it reads drops the whole condition, as an unknown operator
     does, and is listed in `issues`.
+
+The switch of `formwork` to the new engine (0004, 0006 §4 and §6, and
+the parts of 0008 it needs), step 5:
+
+23. **The localizer:** `ErrorLocalizer` takes the error and its field,
+    `null` for a form-level error as 0008 §3 needs.
+    `englishErrorLocalizer` is the default, with the texts of the 0.1
+    validators, and `localizeError` applies a field's `messages` first.
+24. **Variants of text** (amends 14): `TextFieldDef` takes a `type:`,
+    `"text"` by default. Catalogs keep `"email"` and `"password"`, read as
+    text fields of that type, and the registry picks the builder by type.
+    Any other variant (`"textarea"`, `"phone"`) needs no new class.
+25. **Missing data and disabled fields:** a disabled field is never
+    missing, whatever its value: the user cannot answer it, as with the
+    engine, which does not validate it (decision 11).

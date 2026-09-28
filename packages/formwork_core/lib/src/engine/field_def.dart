@@ -13,9 +13,10 @@ import 'validators.dart' show isEmptyValue;
 /// lists them in [reads]; the engine then revalidates it when they change.
 /// Validators never see empty values: only `required` judges emptiness.
 ///
-/// A custom validator should override `==` and `hashCode` over every
-/// parameter, so that an equal re-registration is recognised as the same
-/// (design doc 0007 §3).
+/// A custom validator extends this class, so a catalog can check that it
+/// accepts a field's value type, and should override `==` and `hashCode`
+/// over every parameter, so that an equal re-registration is recognised as
+/// the same (design doc 0007 §3).
 abstract class Validator<T> {
   /// Const constructor for subclasses.
   const Validator();
@@ -26,6 +27,22 @@ abstract class Validator<T> {
   /// The error for [value], or `null` when it is valid. [valueOf] reads the
   /// value of another path, one listed in [reads].
   ValidationError? validate(T value, Object? Function(FieldPath path) valueOf);
+
+  bool _acceptsAll<V>() => <V>[] is List<T>;
+}
+
+/// Whether [validator] accepts every value of type [V]: a `Validator<String>`
+/// does not accept every `Object`, although it is a `Validator<Object>` by
+/// covariance. Engine-side; the package barrel does not export it.
+///
+/// A class that implements [Validator] instead of extending it cannot be
+/// checked: it is accepted when it is a `Validator<V>`.
+bool validatorAccepts<V>(Validator<Object?> validator) {
+  try {
+    return validator._acceptsAll<V>();
+  } on NoSuchMethodError {
+    return true;
+  }
 }
 
 /// The definition of one field holding a [T] (design doc 0001 §3): where it

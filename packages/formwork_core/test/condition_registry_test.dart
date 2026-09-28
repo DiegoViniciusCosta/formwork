@@ -119,6 +119,66 @@ void main() {
     });
   });
 
+  group('decodeOperand and unknown', () {
+    test('decodeOperand turns comparison operands into values', () {
+      final condition = ConditionRegistry().decode(
+        {
+          'all': [
+            {
+              'eq': ['a', 'x'],
+            },
+            {
+              'in': [
+                'b',
+                ['y', 'z'],
+              ],
+            },
+          ],
+        },
+        decodeOperand: (path, json) => '$path:$json',
+      );
+      expect(
+          condition,
+          all([
+            eq('a', 'a:x'),
+            isIn('b', ['b:y', 'b:z'])
+          ]));
+    });
+
+    test('an operand that fails to decode drops the whole condition', () {
+      final condition = ConditionRegistry().decode(
+        {
+          'not': {
+            'eq': ['a', 'x'],
+          },
+        },
+        decodeOperand: (_, __) => throw const FormatException('no'),
+      );
+      expect(condition, isNull);
+    });
+
+    test('unknown operators go to the call and to the registry', () {
+      final fromRegistry = <String>[];
+      final fromCall = <String>[];
+      ConditionRegistry(onUnknown: fromRegistry.add).decode(
+        {'future': []},
+        unknown: fromCall.add,
+      );
+      expect(fromRegistry, ['future']);
+      expect(fromCall, ['future']);
+    });
+
+    test('a registered operator replaces a built-in one', () {
+      final registry = ConditionRegistry()
+        ..register('eq', (args, _) => empty((args! as List).first as String));
+      expect(
+          registry.decode({
+            'eq': ['a', 1],
+          }),
+          empty('a'));
+    });
+  });
+
   group('custom operators', () {
     test('register like validators and decode to the custom condition', () {
       final conditions = ConditionRegistry()

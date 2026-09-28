@@ -1,5 +1,14 @@
 ## Unreleased
 
+- Catalogs read into typed definitions (decisions 21 and 22 of design
+  doc 0001), internal until `formwork` switches to the new engine:
+  `FormCatalog.fromJson` with optional `FieldTypeRegistry`,
+  `ValidatorRegistry` and `ConditionRegistry`. Condition operands decode
+  through the codec of the field they read, whatever the field order.
+  Unknown types, validators and operators, values and operands that do
+  not decode, and fields that would close a cycle are skipped and listed
+  in `issues`. `ConditionRegistry.decode` gains `decodeOperand:` and
+  `unknown:`.
 - Forms in code (design docs 0001 §3 and 0006 §1 to §3, decisions 14 to
   20):
   - `TextFieldDef`, `NumberFieldDef`, `ChoiceFieldDef<T>` with `Option`,

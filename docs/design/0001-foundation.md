@@ -358,3 +358,14 @@ step 4:
 20. **A path no field registers holds JSON**, in `change` as in
     `initialValues`, so a field that registers there later decodes it.
     An option whose value is neither JSON nor an enum needs `json:`.
+21. **The JSON front door.** `FormCatalog.fromJson(json, types:,
+    validators:, conditions:)` takes optional registries. A custom type
+    registers a factory that receives a `FieldJson`: the common parts
+    already read (key, label, conditions, typed validators, messages,
+    the decoded initial value) and the raw map for the rest.
+    `catalog.issues` lists what the tolerance rule skipped, as
+    `CatalogIssue`s: where, what kind (unknown type, validator or
+    operator, a cycle, a value or operand that does not decode) and why.
+22. **A condition operand that does not decode** through the codec of
+    the field it reads drops the whole condition, as an unknown operator
+    does, and is listed in `issues`.

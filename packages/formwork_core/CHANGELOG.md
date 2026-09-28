@@ -1,5 +1,14 @@
 ## Unreleased
 
+- `FieldDef<T>` and `Validator<T>` (design doc 0001 §3, decisions 9 and
+  12): the typed definition of a field, and rules that return error data
+  and declare the other paths they read. `FieldState` now carries its
+  `def`, which its constructor requires.
+- A new engine, internal until `formwork` switches to it (design docs
+  0001, 0002 and 0007): fields register and unregister at runtime, state
+  lives per path in a persistent trie, and a change recomputes only the
+  fields whose rules read it. One change costs about 1 µs at 10,000
+  fields, against 0.69 ms before (`tool/bench/change_bench.dart`).
 - `CycleError` (design docs 0001 §5 and 0007 §4): names the fields whose
   conditions read each other. Only conditions take part in cycles; two
   cross-field validators that read each other are allowed. Thrown by the

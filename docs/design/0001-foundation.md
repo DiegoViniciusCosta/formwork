@@ -300,3 +300,31 @@ Dependency graph (§5), settled in step 3:
    another field's state, which can flow down a chain. A cross-field
    validator only revalidates, and no chain follows it. Two validators
    that read each other (`matches` both ways) are allowed.
+
+The engine (§3, §6, and 0002 open question 2), settled in step 3:
+
+9. **`Validator<T>`** declares what it reads, like a condition:
+
+   ```dart
+   abstract class Validator<T> {
+     Set<FieldPath> get reads => const {}; // other paths; usually none
+     ValidationError? validate(T value, Object? Function(FieldPath) valueOf);
+   }
+   ```
+
+   Validators still skip empty values; only `required` judges them.
+   Built-in validators compare by value (0007 §3).
+10. **The snapshot exposes accessors only:** `stateOf(def)`,
+    `valueOf(def)`, `changedPaths`, `visibleFields`, `payload()`, and
+    `status` when 0008 lands. The `values`, `errors` and `touched` maps go away, in the
+    same clean break as the rest of 0001: nothing builds a whole map on
+    a change.
+11. **A disabled field is read-only data:** it stays in the payload and
+    is not validated. An error the user cannot fix would block submit,
+    for the same reason 0007 does not block on server errors for fields
+    that are not on screen.
+12. **`required: true` or `requiredWhen`:** a field is required when
+    either holds. Passing both is redundant, not an error.
+13. **A field that registers again comes back as it was:** value,
+    `touched`, and the initial value `dirty` compares with. A change to
+    its path while it is unregistered updates the value it will find.

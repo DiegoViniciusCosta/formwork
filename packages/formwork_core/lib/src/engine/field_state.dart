@@ -1,3 +1,4 @@
+import 'field_def.dart';
 import 'validation_error.dart';
 
 /// Everything a view needs to draw one field, as one immutable value
@@ -9,8 +10,10 @@ import 'validation_error.dart';
 /// `FieldState` compares by identity: two states that look equal are still
 /// two states.
 final class FieldState {
-  /// A state; the defaults describe an empty, visible, enabled field.
+  /// A state of the field [def]; the defaults describe an empty, visible,
+  /// enabled field.
   const FieldState({
+    required this.def,
     this.value,
     this.error,
     this.visible = true,
@@ -21,6 +24,10 @@ final class FieldState {
     this.validating = false,
     this.generation = 0,
   });
+
+  /// The field's definition. Replacing it gives the field a new state, so
+  /// the change reaches its view (design doc 0007 §2).
+  final FieldDef<Object?> def;
 
   /// The current value, decoded to the field's type.
   final Object? value;
@@ -53,7 +60,7 @@ final class FieldState {
   final int generation;
 
   @override
-  String toString() => 'FieldState(value: $value, error: $error, '
+  String toString() => 'FieldState(${def.path}, value: $value, error: $error, '
       'visible: $visible, enabled: $enabled, required: $required, '
       'touched: $touched, dirty: $dirty, validating: $validating, '
       'generation: $generation)';
@@ -65,6 +72,7 @@ extension FieldStateUpdate on FieldState {
   /// A new state with the given fields replaced. Pass `null` to [value] to
   /// clear it, and [clearError] to remove the error.
   FieldState copyWith({
+    FieldDef<Object?>? def,
     Object? value = _unset,
     ValidationError? error,
     bool clearError = false,
@@ -77,6 +85,7 @@ extension FieldStateUpdate on FieldState {
     int? generation,
   }) =>
       FieldState(
+        def: def ?? this.def,
         value: identical(value, _unset) ? this.value : value,
         error: clearError ? null : error ?? this.error,
         visible: visible ?? this.visible,

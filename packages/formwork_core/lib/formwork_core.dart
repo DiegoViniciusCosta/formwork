@@ -10,6 +10,7 @@ export 'src/catalog/missing_fields.dart';
 export 'src/engine/condition.dart';
 export 'src/engine/dependency_graph.dart' show CycleError;
 export 'src/engine/field_config.dart';
+export 'src/engine/field_def.dart' show FieldDef, Validator;
 export 'src/engine/field_path.dart' show FieldPath;
 export 'src/engine/field_state.dart' show FieldState;
 export 'src/engine/form_engine.dart';

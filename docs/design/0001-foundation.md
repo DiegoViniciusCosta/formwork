@@ -293,3 +293,10 @@ Conditions (§4), settled in step 2:
 7. **Known cost of `isIn`:** `package:test` and `flutter_test` export a
    matcher with the same name. A test file that imports both and uses
    `isIn` must hide one of them.
+
+Dependency graph (§5), settled in step 3:
+
+8. **Only conditions take part in cycle detection.** A condition changes
+   another field's state, which can flow down a chain. A cross-field
+   validator only revalidates, and no chain follows it. Two validators
+   that read each other (`matches` both ways) are allowed.

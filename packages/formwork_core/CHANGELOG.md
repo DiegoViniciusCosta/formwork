@@ -1,5 +1,9 @@
 ## Unreleased
 
+- `CycleError` (design docs 0001 §5 and 0007 §4): names the fields whose
+  conditions read each other. Only conditions take part in cycles; two
+  cross-field validators that read each other are allowed. Thrown by the
+  engine's registration from step 3c on.
 - Conditions (design doc 0001, step 2), not used by the engine yet:
   - `Condition`: a rule over the form's values, as a tree of data that
     lists the paths it reads and compares by value. Built with `eq`,

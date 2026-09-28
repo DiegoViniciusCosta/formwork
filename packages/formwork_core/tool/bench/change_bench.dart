@@ -4,8 +4,7 @@
 //
 //   dart run tool/bench/change_bench.dart          (JIT)
 //   dart compile exe tool/bench/change_bench.dart  (closer to release)
-import 'package:formwork_core/formwork_core.dart' hide FormEngine, FormSnapshot;
-import 'package:formwork_core/src/engine/engine.dart';
+import 'package:formwork_core/formwork_core.dart';
 
 void main() {
   const engine = FormEngine();

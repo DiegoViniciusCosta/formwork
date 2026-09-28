@@ -16,7 +16,7 @@ const _sample = '''
      "options": [{"value": "personal", "label": "Personal"},
                  {"value": "company", "label": "Company"}]},
     {"key": "company", "type": "text", "label": "Company name",
-     "required": true, "visibleWhen": {"field": "kind", "equals": "company"}},
+     "required": true, "visibleWhen": {"eq": ["kind", "company"]}},
     {"key": "photo", "type": "camera", "label": "Photo"}
   ]
 }''';
@@ -35,7 +35,7 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
   final registry = materialFieldRegistry();
   final source = TextEditingController(text: _sample);
 
-  DynamicFormController? controller;
+  FormController? controller;
   List<String> warnings = [];
   String? error;
 
@@ -46,31 +46,22 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
   }
 
   void apply() {
-    final skipped = <String>[];
-    final unknownValidators = <String>{};
     try {
-      final engine = FormEngine(
-        config: FormConfig.fromMap(
-          jsonDecode(source.text) as Map<String, dynamic>,
-          supportedTypes: registry.types,
-          onUnsupported: (f) => skipped.add('${f.key} (${f.type})'),
-        ),
-        validators: ValidatorRegistry(onUnknown: unknownValidators.add),
-      );
+      final catalog =
+          FormCatalog.fromJson(jsonDecode(source.text) as Map<String, dynamic>);
       // Disposed once the widgets listening to it are gone.
       final old = controller;
       WidgetsBinding.instance.addPostFrameCallback((_) => old?.dispose());
       setState(() {
-        controller = DynamicFormController(engine);
+        controller = FormController(catalog);
         error = null;
         warnings = [
-          if (skipped.isNotEmpty) 'Skipped fields: ${skipped.join(', ')}',
-          if (unknownValidators.isNotEmpty)
-            'Skipped validators: ${unknownValidators.join(', ')}',
+          for (final issue in catalog.issues)
+            'Skipped (${issue.kind.name}) in ${issue.path}: ${issue.detail}',
         ];
       });
     } on Object catch (e) {
-      // Malformed JSON, a wrong type in the catalog, a duplicate key...
+      // Malformed JSON, a malformed catalog, a duplicate key...
       setState(() => error = '$e');
     }
   }
@@ -90,9 +81,11 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
       title: 'Catalog playground',
       whatToTry: const [
         'Edit the JSON and tap Apply. The form is rebuilt from scratch.',
-        '"camera" has no builder, so it is skipped and reported.',
-        'Duplicate a key, or put a string in "required": the error is '
-            'shown and the previous form stays.',
+        '"camera" is an unknown type, so it is skipped and reported.',
+        'Duplicate a key, or put a number in "label": the error is shown '
+            'and the previous form stays.',
+        'Make "company" visible when kind is "partner", which is not an '
+            'option: the condition is dropped and reported.',
         'Add {"type": "phone"} to a field\'s validators: it is skipped.',
       ],
       header: Column(
@@ -125,7 +118,7 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
       snapshot: controller,
       form: controller == null
           ? const SizedBox.shrink()
-          : DynamicForm(
+          : FormView(
               // A new controller means a new form, not an update of the old.
               key: ObjectKey(controller),
               controller: controller,

@@ -16,7 +16,7 @@ Check each principle:
    `pubspec.yaml`)? Does `formwork_core/lib/src/engine` import
    `lib/src/catalog`? `material`/`cupertino` in `formwork`? New runtime
    dependencies? Does a
-   builder need something that is not in `FieldContext`? Does anything
+   builder need something that is not in `FieldProps`? Does anything
    assume a specific state management approach?
 2. **Surgical rebuilds.** Can a local change now rebuild other fields or
    the whole form? Does new engine work scale with form size instead of

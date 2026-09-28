@@ -28,7 +28,9 @@ Map<String, dynamic> _bigCatalog() => {
                 {'type': 'minLength', 'value': 2},
             ],
             if (i % 5 == 0)
-              'visibleWhen': {'field': 'showExtras', 'equals': true},
+              'visibleWhen': {
+                'eq': ['showExtras', true],
+              },
           },
       ],
     };
@@ -50,11 +52,11 @@ FieldRegistry _countingRegistry(
     FieldRegistry()
       ..registerAll({
         for (final MapEntry(key: type, value: build) in inner.entries)
-          type: (context, f, x) => Row(
+          type: (context, field) => Row(
                 children: [
-                  Expanded(child: build(context, f, x)),
+                  Expanded(child: build(context, field)),
                   const SizedBox(width: 8),
-                  _Badge(counts.hit(f.key)),
+                  _Badge(counts.hit(field.def.path.toString())),
                 ],
               ),
       });
@@ -93,9 +95,7 @@ class RebuildInspectorScenario extends StatefulWidget {
 class _RebuildInspectorScenarioState extends State<RebuildInspectorScenario> {
   final counts = _BuildCounts();
   late final registry = _countingRegistry(materialFieldBuilders, counts);
-  late final controller = DynamicFormController(
-    FormEngine(config: FormConfig.fromMap(_bigCatalog())),
-  );
+  late final controller = FormController(FormCatalog.fromJson(_bigCatalog()));
   bool enabled = true;
 
   @override
@@ -127,7 +127,7 @@ class _RebuildInspectorScenarioState extends State<RebuildInspectorScenario> {
           valueListenable: controller,
           builder: (context, _, __) => _TotalBuilds(counts),
         ),
-        form: DynamicForm(
+        form: FormView(
           controller: controller,
           registry: registry,
           enabled: enabled,

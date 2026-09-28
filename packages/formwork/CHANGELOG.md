@@ -1,5 +1,24 @@
 ## Unreleased
 
+- **Breaking:** the widgets follow the foundation (design docs 0001,
+  0004, 0006 §4 and §6, and 0007):
+  - `FormController(form, initialValues:)` replaces
+    `DynamicFormController`; `change` takes a `FieldPath`. It notifies each
+    field only when that field's state changes (`fieldState(def)`), and
+    exposes `status` for form-level UI.
+  - `FormView` and `SnapshotFormView` replace `DynamicForm` and
+    `DynamicFormView`.
+  - `FieldProps<T>` replaces `FieldContext`: builders take
+    `(context, props)`, and read the definition from `props.def` and the
+    raw error from `props.error`. `FieldRegistry.registerDef<D, T>`
+    registers a builder for a definition class, typed.
+  - New: `FieldView` places one field anywhere in a layout, with an
+    optional per-view `builder:` and a `wrap:` built only while the field
+    is visible; `FormScope` provides the controller, registry, localizer
+    and `enabled` below it; `SnapshotFieldView` does the same for Bloc and
+    Riverpod. Debug builds report a `FieldView` for a field not in the
+    form, a field shown twice, and a visible field no `FieldView` shows.
+  - Error text comes from an `ErrorLocalizer`, English by default.
 - **Breaking:** the engine moved to a new pure Dart package,
   `formwork_core` (design doc 0007), so a Dart backend can validate the
   same catalogs without Flutter. `package:formwork/formwork.dart`

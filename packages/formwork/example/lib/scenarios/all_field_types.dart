@@ -103,9 +103,7 @@ class AllFieldTypesScenario extends StatefulWidget {
 
 class _AllFieldTypesScenarioState extends State<AllFieldTypesScenario> {
   final registry = materialFieldRegistry();
-  late final controller = DynamicFormController(
-    FormEngine(config: FormConfig.fromMap(_catalogJson)),
-  );
+  late final controller = FormController(FormCatalog.fromJson(_catalogJson));
 
   @override
   void dispose() {
@@ -127,7 +125,7 @@ class _AllFieldTypesScenarioState extends State<AllFieldTypesScenario> {
           'Plan starts at "Free" from initialValue.',
         ],
         snapshot: controller,
-        form: DynamicForm(controller: controller, registry: registry),
+        form: FormView(controller: controller, registry: registry),
         bottomBar: SubmitButton(
           controller: controller,
           label: 'Create account',

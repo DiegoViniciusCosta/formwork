@@ -9,7 +9,7 @@ distinguishes what CI enforces today from what is planned.
 
 ## 1. Agnostic of design system, state management, and of how forms are defined
 
-**Rule.** Everything a field needs to render arrives through `FieldContext`.
+**Rule.** Everything a field needs to render arrives through `FieldProps`.
 State enters and leaves only as an immutable `FormSnapshot` plus callbacks.
 Nothing requires a specific provider, `InheritedWidget` or package.
 
@@ -87,5 +87,5 @@ Examples of the filter applied:
 | Ready-made grid layouts          | Only a layout builder hook enters the core         |
 | Material widgets                 | Satellite package: would violate 1                 |
 | Form testing utilities           | Satellite package                                  |
-| Show only missing fields         | Recipe built on the engine's public API (`missingKeys`, `missingFields`) |
+| Show only missing fields         | Recipe built on the engine's public API (`missingKeys`, `onlyMissing`) |
 | Theming, networking, file upload | Out                                                |

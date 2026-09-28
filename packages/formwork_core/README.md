@@ -11,10 +11,17 @@ payload, in a Dart backend or CLI.
 ```dart
 import 'package:formwork_core/formwork_core.dart';
 
-final engine = FormEngine(config: FormConfig.fromMap(catalogJson));
-final (:snapshot, :payload) = engine.submit(engine.initial(submittedData));
+const engine = FormEngine();
+final catalog = FormCatalog.fromJson(catalogJson);
+final form = engine.registerAll(
+  engine.initial(initialValues: submittedData),
+  catalog.fields,
+);
+final (:snapshot, :payload) = engine.submit(form);
 if (payload == null) {
-  print(snapshot.errors); // field key -> error
+  for (final def in snapshot.visibleFields) {
+    print('${def.path}: ${snapshot.stateOf(def)!.error}'); // code + params
+  }
 }
 ```
 

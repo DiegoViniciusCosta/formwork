@@ -4,7 +4,7 @@ Material Design field builders for [formwork](../formwork).
 
 ```dart
 final registry = materialFieldRegistry();
-DynamicForm(controller: controller, registry: registry);
+FormView(controller: controller, registry: registry);
 ```
 
 Covers `text`, `email`, `password`, `number`, `dropdown` and `checkbox`.

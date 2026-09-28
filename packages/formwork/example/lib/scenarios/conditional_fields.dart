@@ -26,7 +26,9 @@ const _catalogJson = <String, dynamic>{
       'validators': [
         {'type': 'email'},
       ],
-      'visibleWhen': {'field': 'contactBy', 'equals': 'email'},
+      'visibleWhen': {
+        'eq': ['contactBy', 'email'],
+      },
     },
     {
       'key': 'phone',
@@ -36,7 +38,9 @@ const _catalogJson = <String, dynamic>{
       'validators': [
         {'type': 'pattern', 'value': r'^\+?\d{10,13}$'},
       ],
-      'visibleWhen': {'field': 'contactBy', 'equals': 'phone'},
+      'visibleWhen': {
+        'eq': ['contactBy', 'phone'],
+      },
     },
     {
       'key': 'bestTime',
@@ -46,7 +50,9 @@ const _catalogJson = <String, dynamic>{
         {'value': 'morning', 'label': 'Morning'},
         {'value': 'evening', 'label': 'Evening'},
       ],
-      'visibleWhen': {'field': 'contactBy', 'equals': 'phone'},
+      'visibleWhen': {
+        'eq': ['contactBy', 'phone'],
+      },
     },
     // A chain of three: hasVehicle -> vehicleType -> licensePlate.
     {
@@ -63,7 +69,9 @@ const _catalogJson = <String, dynamic>{
         {'value': 'car', 'label': 'Car'},
         {'value': 'bike', 'label': 'Bicycle'},
       ],
-      'visibleWhen': {'field': 'hasVehicle', 'equals': true},
+      'visibleWhen': {
+        'eq': ['hasVehicle', true],
+      },
     },
     {
       'key': 'licensePlate',
@@ -73,7 +81,9 @@ const _catalogJson = <String, dynamic>{
       'validators': [
         {'type': 'pattern', 'value': r'^[A-Z]{3}-?\d[A-Z0-9]\d{2}$'},
       ],
-      'visibleWhen': {'field': 'vehicleType', 'equals': 'car'},
+      'visibleWhen': {
+        'eq': ['vehicleType', 'car'],
+      },
     },
   ],
 };
@@ -89,9 +99,7 @@ class ConditionalFieldsScenario extends StatefulWidget {
 
 class _ConditionalFieldsScenarioState extends State<ConditionalFieldsScenario> {
   final registry = materialFieldRegistry();
-  late final controller = DynamicFormController(
-    FormEngine(config: FormConfig.fromMap(_catalogJson)),
-  );
+  late final controller = FormController(FormCatalog.fromJson(_catalogJson));
 
   @override
   void dispose() {
@@ -111,7 +119,7 @@ class _ConditionalFieldsScenarioState extends State<ConditionalFieldsScenario> {
               'plate. Unchecking hides both Vehicle type and License plate.',
         ],
         snapshot: controller,
-        form: DynamicForm(controller: controller, registry: registry),
+        form: FormView(controller: controller, registry: registry),
         bottomBar: SubmitButton(
           controller: controller,
           onValid: (payload) => showPayload(context, payload),

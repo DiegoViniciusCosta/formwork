@@ -8,8 +8,9 @@ state, validation and rendering, one field at a time.
 
 ## Why formwork
 
-- **Any design system.** Field builders receive a tiny contract (`value`,
-  `errorText`, `enabled`, `onChanged`) that any component can satisfy. The
+- **Any design system.** Field builders receive a tiny contract,
+  `FieldProps` (`def`, `value`, `errorText`, `enabled`, `onChanged` and the
+  raw `error`), that any component can satisfy. The
   core ships no visual widgets; a Material kit lives in `formwork_material`.
 - **Any state management.** The core is pure Dart, in its own package
   (`formwork_core`), with no Flutter dependency.
@@ -18,52 +19,100 @@ state, validation and rendering, one field at a time.
   forced on your app.
 - **Surgical rebuilds.** Typing in one field rebuilds that field only, not
   the whole form. Validation is incremental. Both are covered by tests.
-- **Server-driven ready.** Forms can come from a Map/JSON catalog. Unknown
-  field types and validators are skipped and reported, never crash the
-  screen.
+- **Server-driven ready.** Forms can come from a JSON catalog, or be
+  written as typed Dart classes. Unknown field types, validators and
+  operators are skipped and reported, never crash the screen.
 
 ## Quick start
 
 ```dart
 final registry = materialFieldRegistry(); // from formwork_material
-final validators = ValidatorRegistry();
 
-final catalog = FormConfig.fromMap(json, supportedTypes: registry.types);
-final controller = DynamicFormController(
-  FormEngine(config: catalog, validators: validators),
-  initialData: userData, // what you already know, prefilled
+final catalog = FormCatalog.fromJson(json); // or a FormDef written in Dart
+final controller = FormController(
+  catalog,
+  initialValues: userData, // what you already know, prefilled
 );
 
 // In your widget tree:
-DynamicForm(controller: controller, registry: registry);
+FormView(controller: controller, registry: registry);
 
 // In your call to action:
 final payload = controller.submit(); // null when invalid
 if (payload != null) await api.updateProfile(payload);
 ```
 
-`initialData` prefills the form and feeds visibility rules, but only the
-fields of the form end up in the payload, which is ready for a PATCH.
+`initialValues` prefills the form and feeds visibility rules, but only the
+visible fields of the form end up in the payload, which is ready for a
+PATCH. `catalog.issues` lists what the catalog had that this app version
+does not know.
+
+### Forms written in Dart
+
+```dart
+enum MaritalStatus { single, married }
+
+class ProfileForm extends FormDef {
+  final fullName = TextFieldDef('fullName',
+      label: 'Full name', required: true, validators: [minLength(3)]);
+  final maritalStatus = ChoiceFieldDef<MaritalStatus>('maritalStatus',
+      label: 'Marital status',
+      options: [for (final s in MaritalStatus.values) Option(s, s.name)]);
+  late final spouseName = TextFieldDef('spouseName',
+      label: 'Spouse name', required: true,
+      visibleWhen: maritalStatus.equals(MaritalStatus.married));
+
+  @override
+  List<FieldDef<Object?>> get fields => [fullName, maritalStatus, spouseName];
+}
+
+final form = ProfileForm();
+final controller = FormController(form);
+controller.value.valueOf(form.maritalStatus); // MaritalStatus?
+```
+
+Validators and conditions are typed: `min(1000)` on a text field, or a
+string condition on an enum field, does not compile.
+
+### Place each field anywhere
+
+`FormView` renders every visible field in a column. For your own layout,
+place each field with a `FieldView`; each one rebuilds only when its own
+field changes:
+
+```dart
+FormScope(
+  controller: controller,
+  registry: registry,
+  child: Column(children: [
+    Text('Personal data', style: theme.titleLarge),
+    FieldView(form.fullName),
+    FieldView(form.spouseName, wrap: (context, field) => Card(child: field)),
+  ]),
+)
+```
+
+`wrap` builds the surroundings only while the field is visible.
 
 See [`example/`](example/lib/main.dart) for a complete app.
 
 ## Recipes: missing data
 
 Two optional recipes for users you already know something about. Both are
-built on the engine's public API; the engine works the same either way.
+built on the catalog's public API; the engine works the same either way.
 A field is *missing* when its stored value fails the catalog's own rules:
-required and empty, or filled but invalid.
+required and empty, filled but invalid, or not decodable.
 
 ### Ask only what is missing
 
-`missingFields` narrows the catalog to the missing fields:
+`onlyMissing` narrows the catalog to the missing fields:
 
 ```dart
-final form = missingFields(catalog, userData, validators: validators);
+final form = catalog.onlyMissing(userData);
 if (form.fields.isNotEmpty) {
-  final controller = DynamicFormController(
-    FormEngine(config: form, validators: validators),
-    initialData: userData, // keep passing it: see below
+  final controller = FormController(
+    form,
+    initialValues: userData, // keep passing it: see below
   );
 }
 ```
@@ -75,13 +124,13 @@ stored value because you pass the same `userData` to the controller.
 
 ### Highlight what is missing
 
-`missingKeys` returns the same selection as keys and hides nothing. Show
+`missingKeys` returns the same selection as paths and hides nothing. Show
 the whole form and let your builders mark what is missing:
 
 ```dart
-final missing = missingKeys(catalog, userData, validators: validators);
-registry.register('text', (context, field, ctx) =>
-    MyTextField(field, ctx, highlighted: missing.contains(field.key)));
+final missing = catalog.missingKeys(userData);
+registry.register('text', (context, field) =>
+    MyTextField(field, highlighted: missing.contains(field.def.path)));
 ```
 
 The set describes the stored data, so it is fixed for the session.
@@ -98,7 +147,7 @@ The set describes the stored data, so it is fixed for the session.
       "label": "Spouse name",
       "required": true,
       "validators": [{ "type": "minLength", "value": 3 }],
-      "visibleWhen": { "field": "maritalStatus", "equals": "married" }
+      "visibleWhen": { "eq": ["maritalStatus", "married"] }
     }
   ]
 }
@@ -114,13 +163,25 @@ The set describes the stored data, so it is fixed for the session.
 | `initialValue` | any     | Used when there is no user data                        |
 | `options`      | List    | `[{value, label}]` for `dropdown`                      |
 | `validators`   | List    | `[{type, value?, message?}]`                           |
-| `visibleWhen`  | Map?    | `{field, equals}`                                      |
+| `visibleWhen`  | Map?    | A condition: when the field is shown                   |
+| `enabledWhen`  | Map?    | A condition: when it can be edited                     |
+| `requiredWhen` | Map?    | A condition: when it is required                       |
 
-Any other key is kept in `FieldConfig.extra`, for custom builders.
+A condition is an object with one operator: `eq`, `ne`, `in`, `gt`, `gte`,
+`lt`, `lte` and `empty` read a path; `all`, `any` and `not` combine
+conditions:
 
-Built-in validators: `required`, `minLength`, `maxLength`, `pattern`, `email`,
-`min`, `max`. Every validator accepts a `message` override, which is also how
-you localize messages.
+```json
+{ "all": [ { "eq": ["maritalStatus", "married"] }, { "gte": ["age", 18] } ] }
+```
+
+Any other key is kept in `FieldDef.extra`, for custom builders.
+
+Built-in validators: `required`, `minLength`, `maxLength`, `pattern`,
+`email`, `min`, `max` and `matches` (`{"type": "matches", "field":
+"password"}`). Validators return error codes, never text: an
+`ErrorLocalizer` turns them into text, English by default, and a
+validator's `message` overrides the text of its code on that field.
 
 ## State management adapters
 
@@ -130,13 +191,14 @@ The engine is pure: it takes a snapshot and returns a new one.
 
 ```dart
 class ProfileFormCubit extends Cubit<FormSnapshot> {
-  ProfileFormCubit(this.engine, Map<String, Object?> data)
-      : super(engine.initial(data));
+  ProfileFormCubit(FormDef form, Map<String, Object?> data)
+      : super(engine.registerAll(
+            engine.initial(initialValues: data), form.fields));
 
-  final FormEngine engine;
+  static const engine = FormEngine();
 
-  void change(String key, Object? value) =>
-      emit(engine.change(state, key, value));
+  void change(FieldPath path, Object? value) =>
+      emit(engine.change(state, path, value));
 
   Map<String, Object?>? submit() {
     final result = engine.submit(state);
@@ -146,8 +208,7 @@ class ProfileFormCubit extends Cubit<FormSnapshot> {
 }
 
 BlocBuilder<ProfileFormCubit, FormSnapshot>(
-  builder: (context, snapshot) => DynamicFormView(
-    engine: context.read<ProfileFormCubit>().engine,
+  builder: (context, snapshot) => SnapshotFormView(
     snapshot: snapshot,
     onChanged: context.read<ProfileFormCubit>().change,
     registry: registry,
@@ -155,20 +216,24 @@ BlocBuilder<ProfileFormCubit, FormSnapshot>(
 );
 ```
 
+Each snapshot lists the fields whose state changed in `changedPaths`, and
+keeps every other field's `FieldState` identical, so a `BlocSelector` per
+field, feeding a `SnapshotFieldView`, rebuilds only that field.
+
 ### Riverpod
 
 ```dart
 class ProfileForm extends Notifier<FormSnapshot> {
-  late final FormEngine engine;
+  static const engine = FormEngine();
 
   @override
-  FormSnapshot build() {
-    engine = FormEngine(config: ref.watch(pendingFieldsProvider));
-    return engine.initial(ref.watch(userDataProvider));
-  }
+  FormSnapshot build() => engine.registerAll(
+        engine.initial(initialValues: ref.watch(userDataProvider)),
+        ref.watch(pendingFieldsProvider).fields,
+      );
 
-  void change(String key, Object? value) =>
-      state = engine.change(state, key, value);
+  void change(FieldPath path, Object? value) =>
+      state = engine.change(state, path, value);
 }
 ```
 
@@ -195,18 +260,40 @@ same catalogs as the app.
 ## Custom fields
 
 ```dart
-registry.register('taxId', (context, field, ctx) => TextControllerBinding(
-      value: ctx.value,
-      onChanged: ctx.onChanged,
+registry.register('taxId', (context, field) => TextControllerBinding<Object>(
+      value: field.value,
+      onChanged: field.onChanged,
       builder: (_, controller, onTextChanged) => MyDsTextInput(
         controller: controller,
-        label: field.label,
-        errorText: ctx.errorText,
-        enabled: ctx.enabled,
+        label: field.def.label,
+        errorText: field.errorText,
+        enabled: field.enabled,
         onChanged: onTextChanged,
       ),
     ));
 ```
+
+A field type of your own is a `FieldDef` subclass, rendered with its
+definition typed:
+
+```dart
+class RatingFieldDef extends FieldDef<int> {
+  RatingFieldDef(super.key, {super.label, this.max = 5});
+
+  @override
+  String get type => 'rating'; // the JSON "type"
+
+  final int max;
+}
+
+registry.registerDef<RatingFieldDef, int>(
+    (context, field, def) => MyRating(max: def.max, value: field.value));
+```
+
+For catalogs, register a factory that builds it from its entry:
+`FieldTypeRegistry()..register('rating', (f) => RatingFieldDef(f.key,
+label: f.label, max: f.json['max'] as int? ?? 5))`, and pass it to
+`FormCatalog.fromJson(json, types: ...)`.
 
 Text inputs should use `TextControllerBinding`. It keeps one controller
 for the life of the field, so the cursor survives rebuilds, and it keeps

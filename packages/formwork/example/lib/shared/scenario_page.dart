@@ -92,8 +92,8 @@ class _WhatToTry extends StatelessWidget {
   }
 }
 
-/// Collapsible, live view of a [FormSnapshot]: values, errors (all of them,
-/// not only the displayed ones), touched keys and flags.
+/// Collapsible, live view of a [FormSnapshot]: the status, and each visible
+/// field's value, error (shown or not) and flags.
 class SnapshotInspector extends StatelessWidget {
   const SnapshotInspector(this.snapshot, {super.key});
 
@@ -110,12 +110,15 @@ class SnapshotInspector extends StatelessWidget {
             valueListenable: snapshot,
             builder: (context, s, _) => SelectableText(
               [
-                'isValid: ${s.isValid}',
-                'submitAttempted: ${s.submitAttempted}',
-                'visible: ${s.visibleFields.map((f) => f.key).join(', ')}',
-                'touched: ${s.touched.join(', ')}',
-                'errors: ${s.errors}',
-                'values: ${s.values}',
+                'isValid: ${s.status.isValid}',
+                'submitAttempted: ${s.status.submitAttempted}',
+                'dirty: ${s.status.dirty}',
+                for (final def in s.visibleFields)
+                  if (s.stateOf(def) case final f?)
+                    '${def.path}: ${f.value}'
+                        '${f.error == null ? '' : '  error: ${f.error}'}'
+                        '${f.touched ? '  touched' : ''}'
+                        '${f.enabled ? '' : '  disabled'}',
               ].join('\n'),
               style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
@@ -154,13 +157,13 @@ class SubmitButton extends StatelessWidget {
     this.label = 'Submit',
   });
 
-  final DynamicFormController controller;
+  final FormController controller;
   final void Function(Map<String, Object?> payload) onValid;
   final String label;
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<FormSnapshot>(
-        valueListenable: controller,
+  Widget build(BuildContext context) => ValueListenableBuilder<FormStatus>(
+        valueListenable: controller.status,
         builder: (context, s, _) => FilledButton(
           onPressed: s.submitAttempted && !s.isValid
               ? null

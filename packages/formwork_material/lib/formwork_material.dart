@@ -5,46 +5,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:formwork/formwork.dart';
 
-/// Registry with Material builders for `text`, `email`, `password`,
-/// `number`, `dropdown` and `checkbox`.
+/// A registry with Material builders for the text types `text`, `email`
+/// and `password`, and for `number`, `dropdown` and `checkbox`.
 FieldRegistry materialFieldRegistry() =>
     FieldRegistry()..registerAll(materialFieldBuilders);
 
-/// Material builders, to register individually or all at once.
+/// The Material builders by field type, to register one by one or all at
+/// once.
 final Map<String, FieldBuilder> materialFieldBuilders = {
-  'text': (_, f, x) => _text(f, x),
-  'email': (_, f, x) => _text(f, x, keyboard: TextInputType.emailAddress),
-  'password': (_, f, x) => _text(f, x, obscure: true),
-  'number': (_, f, x) => _text(
-        f,
-        x,
+  'text': (_, field) => _text(field),
+  'email': (_, field) => _text(field, keyboard: TextInputType.emailAddress),
+  'password': (_, field) => _text(field, obscure: true),
+  'number': (_, field) => _text(
+        field,
         keyboard: const TextInputType.numberWithOptions(decimal: true),
         formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,-]'))],
-        parse: (s) => num.tryParse(s.replaceAll(',', '.')),
+        parse: (text) => num.tryParse(text.replaceAll(',', '.')),
       ),
   'dropdown': _dropdown,
   'checkbox': _checkbox,
 };
 
 Widget _text(
-  FieldConfig f,
-  FieldContext x, {
+  FieldProps<Object?> field, {
   TextInputType? keyboard,
   bool obscure = false,
   List<TextInputFormatter>? formatters,
-  Object? Function(String raw)? parse,
+  Object? Function(String text)? parse,
 }) =>
     TextControllerBinding<Object>(
-      value: x.value,
+      value: field.value,
       parse: parse,
-      onChanged: x.onChanged,
+      onChanged: field.onChanged,
       builder: (_, controller, onTextChanged) => TextField(
         controller: controller,
-        enabled: x.enabled,
+        enabled: field.enabled,
         decoration: InputDecoration(
-          labelText: f.label,
-          hintText: f.hint,
-          errorText: x.errorText,
+          labelText: field.def.label,
+          hintText: field.def.hint,
+          errorText: field.errorText,
         ),
         keyboardType: keyboard,
         obscureText: obscure,
@@ -53,30 +52,38 @@ Widget _text(
       ),
     );
 
-Widget _dropdown(BuildContext _, FieldConfig f, FieldContext x) =>
-    DropdownButtonFormField<Object>(
-      initialValue: x.value,
-      decoration: InputDecoration(labelText: f.label, errorText: x.errorText),
-      items: [
-        for (final o in f.options)
-          DropdownMenuItem(value: o.value, child: Text(o.label)),
-      ],
-      onChanged: x.enabled ? x.onChanged : null,
-    );
+Widget _dropdown(BuildContext _, FieldProps<Object?> field) {
+  final def = field.def;
+  final options =
+      def is ChoiceFieldDef<Object?> ? def.options : const <Option<Object?>>[];
+  return DropdownButtonFormField<Object?>(
+    initialValue: field.value,
+    decoration: InputDecoration(
+      labelText: def.label,
+      hintText: def.hint,
+      errorText: field.errorText,
+    ),
+    items: [
+      for (final option in options)
+        DropdownMenuItem(value: option.value, child: Text(option.label)),
+    ],
+    onChanged: field.enabled ? field.onChanged : null,
+  );
+}
 
-Widget _checkbox(BuildContext context, FieldConfig f, FieldContext x) => Column(
+Widget _checkbox(BuildContext context, FieldProps<Object?> field) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CheckboxListTile(
-          value: x.value == true,
-          title: Text(f.label),
+          value: field.value == true,
+          title: Text(field.def.label ?? ''),
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          onChanged: x.enabled ? x.onChanged : null,
+          onChanged: field.enabled ? field.onChanged : null,
         ),
-        if (x.errorText != null)
+        if (field.errorText case final error?)
           Text(
-            x.errorText!,
+            error,
             style: TextStyle(
               color: Theme.of(context).colorScheme.error,
               fontSize: 12,

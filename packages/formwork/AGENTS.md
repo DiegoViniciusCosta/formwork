@@ -8,7 +8,7 @@ Root rules in `/AGENTS.md` apply. Additional rules for this package:
   visibility logic lives here; if you need it, it belongs in
   `formwork_core`.
 - `FormSnapshot` is the only state crossing the core/Flutter boundary.
-- Field builders receive only `FieldContext`. Anything a design system
+- Field builders receive only `FieldProps`. Anything a design system
   needs must be added there, never read from elsewhere.
 - `test/rebuild_test.dart` is a contract. A failing rebuild count is a
   regression, not a test to update, unless a design doc says otherwise.

@@ -3,7 +3,7 @@
 import 'package:formwork_core/formwork_core.dart';
 
 /// The catalog the server sends to the app, and validates against.
-final catalog = FormConfig.fromMap({
+final catalog = FormCatalog.fromJson({
   'fields': [
     {'key': 'name', 'type': 'text', 'label': 'Name', 'required': true},
     {
@@ -29,13 +29,15 @@ final catalog = FormConfig.fromMap({
       'type': 'text',
       'label': 'Spouse name',
       'required': true,
-      'visibleWhen': {'field': 'maritalStatus', 'equals': 'married'},
+      'visibleWhen': {
+        'eq': ['maritalStatus', 'married'],
+      },
     },
   ],
 });
 
 void main() {
-  final engine = FormEngine(config: catalog);
+  const engine = FormEngine();
 
   // What the app sent: married, but no spouse name, and a bad email.
   final submitted = {
@@ -44,10 +46,18 @@ void main() {
     'maritalStatus': 'married',
   };
 
-  final (:snapshot, :payload) = engine.submit(engine.initial(submitted));
+  final form = engine.registerAll(
+    engine.initial(initialValues: submitted),
+    catalog.fields,
+  );
+  final (:snapshot, :payload) = engine.submit(form);
   if (payload == null) {
-    // The same errors the app shows, keyed by field.
-    print('Rejected: ${snapshot.errors}');
+    // The same errors the app shows, as data: a code plus params.
+    for (final def in snapshot.visibleFields) {
+      if (snapshot.stateOf(def)!.error case final error?) {
+        print('Rejected ${def.path}: ${localizeError(error, def)}');
+      }
+    }
   } else {
     print('Accepted: $payload');
   }

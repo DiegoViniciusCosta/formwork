@@ -27,7 +27,7 @@ Future<void> _pick(WidgetTester t, String label, String option) async {
   await t.tap(
     find.ancestor(
       of: find.text(label),
-      matching: find.byType(DropdownButtonFormField<Object>),
+      matching: find.byType(DropdownButtonFormField<Object?>),
     ),
   );
   await t.pumpAndSettle();
@@ -192,7 +192,7 @@ void main() {
 
     testWidgets('reports the validator the app does not know', (t) async {
       await _open(t, const CustomValidatorsScenario());
-      expect(find.text('Skipped unknown validators: iban'), findsOneWidget);
+      expect(find.text('Skipped: iban iban'), findsOneWidget);
     });
   });
 
@@ -200,7 +200,7 @@ void main() {
     testWidgets('app builders drive values and validation', (t) async {
       await _open(t, const CustomFieldTypesScenario());
       expect(
-        find.text('Skipped unsupported fields: signature (signature)'),
+        find.text('Skipped: signature (signature)'),
         findsOneWidget,
       );
 

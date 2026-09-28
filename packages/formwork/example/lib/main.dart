@@ -27,7 +27,7 @@ typedef _Scenario = ({
 final List<_Scenario> _scenarios = [
   (
     title: 'Profile completion',
-    subtitle: 'missingFields with different users',
+    subtitle: 'onlyMissing and missingKeys with different users',
     icon: Icons.person_search,
     page: ProfileCompletionScenario.new,
   ),

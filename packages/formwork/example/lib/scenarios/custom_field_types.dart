@@ -59,64 +59,151 @@ const _catalogJson = <String, dynamic>{
   ],
 };
 
-/// Builders written for this app. Each one sees only [FieldConfig] and
-/// [FieldContext], like any design-system component would.
-final Map<String, FieldBuilder> _appBuilders = {
-  'rating': (context, f, x) {
-    final max = f.extra['max'] as int? ?? 5;
-    final value = x.value as int? ?? 0;
+final _json = FieldCodec<Object>(encode: (v) => v, decode: (j) => j);
+
+/// A star rating from 1 to [max]. A `num`, so number validators such as
+/// `min` apply.
+final class RatingFieldDef extends FieldDef<num> {
+  RatingFieldDef(super.key,
+      {super.label,
+      super.required,
+      super.validators,
+      super.messages,
+      this.max = 5});
+
+  final int max;
+
+  @override
+  String get type => 'rating';
+}
+
+/// One of a few options, as a segmented button.
+final class SegmentedFieldDef extends FieldDef<Object> {
+  SegmentedFieldDef(super.key,
+      {super.label, super.required, required this.options})
+      : super(codec: _json);
+
+  final List<Option<Object>> options;
+
+  @override
+  String get type => 'segmented';
+}
+
+/// A number picked on a slider.
+final class SliderFieldDef extends FieldDef<num> {
+  SliderFieldDef(super.key,
+      {super.label,
+      super.initialValue,
+      super.validators,
+      super.messages,
+      this.min = 0,
+      this.max = 100,
+      this.divisions});
+
+  final num min;
+  final num max;
+  final int? divisions;
+
+  @override
+  String get type => 'slider';
+}
+
+/// A yes-or-no switch; "no" is a valid answer.
+final class SwitchFieldDef extends FieldDef<bool> {
+  SwitchFieldDef(super.key, {super.label});
+
+  @override
+  String get type => 'switch';
+}
+
+/// How the catalog builds the app's types: common parts come read, the
+/// rest from the raw entry.
+final _types = FieldTypeRegistry()
+  ..register(
+      'rating',
+      (f) => RatingFieldDef(f.key,
+          label: f.label,
+          required: f.required,
+          validators: f.validators<num>(),
+          messages: f.messages,
+          max: f.json['max'] as int? ?? 5))
+  ..register(
+      'segmented',
+      (f) => SegmentedFieldDef(f.key,
+              label: f.label,
+              required: f.required,
+              options: [
+                for (final o in f.json['options']! as List)
+                  Option<Object>(
+                      (o as Map)['value'] as Object, o['label'] as String),
+              ]))
+  ..register(
+      'slider',
+      (f) => SliderFieldDef(f.key,
+          label: f.label,
+          initialValue: f.initialValue as num?,
+          validators: f.validators<num>(),
+          messages: f.messages,
+          min: f.json['min'] as num? ?? 0,
+          max: f.json['max'] as num? ?? 100,
+          divisions: f.json['divisions'] as int?))
+  ..register('switch', (f) => SwitchFieldDef(f.key, label: f.label));
+
+/// Builders written for this app. Each receives its definition typed, like
+/// any design-system component would.
+FieldRegistry _registry() => materialFieldRegistry()
+  ..registerDef<RatingFieldDef, num>((context, field, def) {
+    final value = field.value ?? 0;
     return _Labeled(
-      label: f.label,
-      errorText: x.errorText,
+      label: def.label ?? '',
+      errorText: field.errorText,
       child: Row(
         children: [
-          for (var star = 1; star <= max; star++)
+          for (var star = 1; star <= def.max; star++)
             IconButton(
               icon: Icon(star <= value ? Icons.star : Icons.star_border),
               color: Colors.amber,
-              onPressed: x.enabled ? () => x.onChanged(star) : null,
+              onPressed: field.enabled ? () => field.onChanged(star) : null,
             ),
         ],
       ),
     );
-  },
-  'segmented': (context, f, x) => _Labeled(
-        label: f.label,
-        errorText: x.errorText,
+  })
+  ..registerDef<SegmentedFieldDef, Object>((context, field, def) => _Labeled(
+        label: def.label ?? '',
+        errorText: field.errorText,
         child: SegmentedButton<Object>(
           emptySelectionAllowed: true,
           segments: [
-            for (final o in f.options)
+            for (final o in def.options)
               ButtonSegment(value: o.value, label: Text(o.label)),
           ],
-          selected: {if (x.value case final Object v) v},
-          onSelectionChanged:
-              x.enabled ? (s) => x.onChanged(s.isEmpty ? null : s.first) : null,
+          selected: {if (field.value case final Object v) v},
+          onSelectionChanged: field.enabled
+              ? (s) => field.onChanged(s.isEmpty ? null : s.first)
+              : null,
         ),
-      ),
-  'slider': (context, f, x) {
-    final min = (f.extra['min'] as num? ?? 0).toDouble();
-    final max = (f.extra['max'] as num? ?? 100).toDouble();
-    final value = (x.value as num? ?? min).toDouble();
+      ))
+  ..registerDef<SliderFieldDef, num>((context, field, def) {
+    final value = (field.value ?? def.min).toDouble();
     return _Labeled(
-      label: '${f.label}: ${value.round()}',
-      errorText: x.errorText,
+      label: '${def.label}: ${value.round()}',
+      errorText: field.errorText,
       child: Slider(
         value: value,
-        min: min,
-        max: max,
-        divisions: f.extra['divisions'] as int?,
-        onChanged: x.enabled ? (v) => x.onChanged(v.round()) : null,
+        min: def.min.toDouble(),
+        max: def.max.toDouble(),
+        divisions: def.divisions,
+        onChanged: field.enabled ? (v) => field.onChanged(v.round()) : null,
       ),
     );
-  },
-  'switch': (context, f, x) => SwitchListTile(
-        title: Text(f.label),
+  })
+  ..registerDef<SwitchFieldDef, bool>((context, field, def) => SwitchListTile(
+        title: Text(def.label ?? ''),
         contentPadding: EdgeInsets.zero,
-        value: x.value == true,
-        onChanged: x.enabled ? x.onChanged : null,
-      ),
-};
+        value: field.value ?? false,
+        onChanged: field.enabled ? field.onChanged : null,
+      ));
 
 class _Labeled extends StatelessWidget {
   const _Labeled({required this.label, required this.child, this.errorText});
@@ -156,23 +243,9 @@ class CustomFieldTypesScenario extends StatefulWidget {
 }
 
 class _CustomFieldTypesScenarioState extends State<CustomFieldTypesScenario> {
-  final registry = materialFieldRegistry()..registerAll(_appBuilders);
-  final skipped = <String>[];
-  late final DynamicFormController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = DynamicFormController(
-      FormEngine(
-        config: FormConfig.fromMap(
-          _catalogJson,
-          supportedTypes: registry.types,
-          onUnsupported: (f) => skipped.add('${f.key} (${f.type})'),
-        ),
-      ),
-    );
-  }
+  final registry = _registry();
+  final catalog = FormCatalog.fromJson(_catalogJson, types: _types);
+  late final controller = FormController(catalog);
 
   @override
   void dispose() {
@@ -186,21 +259,21 @@ class _CustomFieldTypesScenarioState extends State<CustomFieldTypesScenario> {
         whatToTry: const [
           'Rating, segmented, slider and switch are built by the app; '
               'Name comes from formwork_material. Same registry.',
-          'Rating reads "max" from FieldConfig.extra. 1–2 stars show the '
+          'Rating reads "max" into its own RatingFieldDef. 1–2 stars show the '
               'built-in "min" validator with a custom message.',
           'Tap the selected segment again to clear it: required fires.',
           'Slider below 50 fails "min". The slider starts at initialValue.',
-          '"signature" has no builder: it is dropped at parse time, so its '
-              '"required" never blocks submit.',
+          '"signature" is a type this app does not know: it is skipped when '
+              'the catalog is read, so its "required" never blocks submit.',
         ],
-        header: skipped.isEmpty
+        header: catalog.issues.isEmpty
             ? null
             : Text(
-                'Skipped unsupported fields: ${skipped.join(', ')}',
+                'Skipped: ${catalog.issues.map((i) => '${i.path} (${i.detail})').join(', ')}',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
         snapshot: controller,
-        form: DynamicForm(controller: controller, registry: registry),
+        form: FormView(controller: controller, registry: registry),
         bottomBar: SubmitButton(
           controller: controller,
           onValid: (payload) => showPayload(context, payload),

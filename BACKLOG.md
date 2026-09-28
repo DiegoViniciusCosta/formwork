@@ -16,34 +16,34 @@ fundação já suporte, no futuro, formulários feitos de widgets
 ("everything is a widget"). Os itens 4 e 5 saem numa única versão com
 quebra limpa (a 0.1 não foi publicada).
 
-### 4. ⬜ Implementar a fundação (0001, 0002, 0004, 0006, 0007 e 0008)
-Na ordem da "Implementation order" do 0001, e dentro dela:
-- **0007:**
-  - registro de campos em tempo de execução;
-  - definições e grafo dentro do snapshot;
-  - HAMT por caminho;
-  - biblioteca de catálogo separada do engine;
-- **0001:** erros como dados mais um localizador, condições, validação
-  entre campos, grafo de dependências, `touched` e `dirty` separados,
-  ciclos rejeitados com erro claro;
-- **0002 etapas 2 e 3:** armazenamento persistente para o `FieldState`, e
+### 4. 🟨 Implementar a fundação (0001, 0002, 0004, 0006, 0007 e 0008)
+Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
+- 0001 passos 1 a 5: tipos, `Condition`, grafo de dependências, engine
+  incremental com registro em tempo de execução (HAMT por caminho),
+  `FieldDef<T>`, validadores tipados, codecs, `FormCatalog.fromJson` com
+  tolerância, e a view por identidade de `FieldState`;
+- 0002 etapas 2 e 3: cerca de 1 µs por `change()` com 10.000 campos, e
   notificação por campo;
-- **0006:** classes, codecs, `FieldView` (com `builder:` por campo),
-  `FormScope` e layout;
-- **0008:** `FormStatus`, as transições de envio, `submitTo`,
-  `FormStatusBuilder`, `focusNode` no `FieldProps` e `FormFocus`;
-- **teste de "trabalho por mudança"**, que o `PRINCIPLES.md` §2 lista como
-  "Planned".
+- 0004: `FormController`, `FormView`, `SnapshotFormView`, `FieldProps<T>`,
+  `initialValues`, `onlyMissing`/`missingKeys`;
+- 0006 §1 a §4 e §6: classes, codecs, `FieldView` (com `builder:` e
+  `wrap:`), `FormScope`, `SnapshotFieldView` e as verificações de debug;
+- 0008 §1: `FormStatus` e `submit`;
+- teste de "trabalho por mudança".
 
-Inclui a regra do elo do meio para condições de vários campos, decidida
-no 0003.
+Falta:
+- **0001 passo 6:** `group` e `list` no engine. Antes, decidir se uma
+  condição que lê um grupo (`address`) é avisada quando muda um campo
+  dentro dele (`address.zipCode`); os docs não dizem.
+- **0006 §5:** o layout vindo do servidor (seções e linhas) e o
+  `LayoutRegistry`.
+- **0008, o resto:** `startSubmitting`, `completeSubmit`, `abandonSubmit`,
+  `ServerErrors`, `submitTo`, `FormStatusBuilder`, `focusNode` no
+  `FieldProps` e `FormFocus`.
 
-Pode começar já.
-
-### 5. ⬜ Aplicar os nomes do 0004 na mesma versão
-Inclui os builders do `formwork_material` e a troca de `FieldContext` por
+### 5. ✅ Aplicar os nomes do 0004 na mesma versão
+Feito junto com o item 4, inclusive os builders do `formwork_material` e
 `FieldProps` no `PRINCIPLES.md` e nos `AGENTS.md`.
-Depende de: 4.
 
 ---
 

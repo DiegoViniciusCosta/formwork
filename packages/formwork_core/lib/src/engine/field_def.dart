@@ -4,7 +4,7 @@ import 'deep_equality.dart';
 import 'field_codec.dart';
 import 'field_path.dart';
 import 'validation_error.dart';
-import 'validators.dart' show isEmptyValue;
+import 'empty_value.dart';
 
 /// A rule a field's value must follow, returning error data, never display
 /// text (design doc 0001 §2 and decision 9).

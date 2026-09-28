@@ -80,43 +80,52 @@ bool _isValidCpf(String input) {
   return check(9) == digits[9] && check(10) == digits[10];
 }
 
-// Validators return display text in the current 0.1 API. Design doc 0001
-// replaces this with error data (code plus params) and a localizer.
-ValidatorRegistry _validators(void Function(String type) onUnknown) =>
-    ValidatorRegistry(onUnknown: onUnknown)
-      ..register(
-        'cpf',
-        (s) => (v) => _isValidCpf(v.toString())
-            ? null
-            : s['message'] as String? ?? 'Invalid CPF',
-      )
-      ..register(
-        'date',
-        (s) => (v) => _parseDate(v) == null
-            ? s['message'] as String? ?? 'Use dd/mm/yyyy'
-            : null,
-      )
-      ..register('minAge', (s) {
-        final minAge = s['value'] as int;
-        return (v) {
-          final birth = _parseDate(v);
-          // Malformed dates are the `date` validator's job.
-          if (birth == null) return null;
-          final now = DateTime.now();
-          final beforeBirthday = now.month < birth.month ||
-              (now.month == birth.month && now.day < birth.day);
-          final age = now.year - birth.year - (beforeBirthday ? 1 : 0);
-          return age < minAge
-              ? s['message'] as String? ?? 'You must be at least $minAge'
-              : null;
-        };
-      })
-      ..register('oneOf', (s) {
-        final allowed = (s['values'] as List).cast<String>().toSet();
-        return (v) => allowed.contains(v.toString().toUpperCase())
-            ? null
-            : s['message'] as String? ?? 'Not an accepted value';
-      });
+/// A validator written by the app. It returns an error code, never text:
+/// the localizer below turns codes into text.
+final class _Check extends Validator<String> {
+  const _Check(this.code, this.isValid, [this.params = const {}]);
+
+  final String code;
+  final bool Function(String value) isValid;
+  final Map<String, Object?> params;
+
+  @override
+  ValidationError? validate(String value, _) =>
+      isValid(value) ? null : ValidationError(code, params: params);
+}
+
+int _age(DateTime birth) {
+  final now = DateTime.now();
+  final beforeBirthday = now.month < birth.month ||
+      (now.month == birth.month && now.day < birth.day);
+  return now.year - birth.year - (beforeBirthday ? 1 : 0);
+}
+
+ValidatorRegistry _validators() => ValidatorRegistry()
+  ..register('cpf', (_) => _Check('cpf', _isValidCpf))
+  ..register('date', (_) => _Check('date', (v) => _parseDate(v) != null))
+  ..register('minAge', (spec) {
+    final minAge = spec['value']! as int;
+    // Malformed dates are the `date` validator's job.
+    return _Check('minAge', (v) {
+      final birth = _parseDate(v);
+      return birth == null || _age(birth) >= minAge;
+    }, {'min': minAge});
+  })
+  ..register('oneOf', (spec) {
+    final allowed = (spec['values']! as List).cast<String>().toSet();
+    return _Check('oneOf', (v) => allowed.contains(v.toUpperCase()));
+  });
+
+/// Text for the app's own codes; the built-in ones stay in English.
+String _localizer(ValidationError error, FieldDef<Object?>? field) =>
+    switch (error.code) {
+      'cpf' => 'Invalid CPF',
+      'date' => 'Use dd/mm/yyyy',
+      'minAge' => 'You must be at least ${error.params['min']}',
+      'oneOf' => 'Not an accepted value',
+      _ => englishErrorLocalizer(error, field),
+    };
 
 /// Validators registered by the app, composed with built-ins, and one the
 /// app does not know.
@@ -130,21 +139,8 @@ class CustomValidatorsScenario extends StatefulWidget {
 
 class _CustomValidatorsScenarioState extends State<CustomValidatorsScenario> {
   final registry = materialFieldRegistry();
-  final unknownTypes = <String>{};
-  late final DynamicFormController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    // Built here, not lazily: the engine reports unknown validators while
-    // it is created, before the first build reads [unknownTypes].
-    controller = DynamicFormController(
-      FormEngine(
-        config: FormConfig.fromMap(_catalogJson),
-        validators: _validators(unknownTypes.add),
-      ),
-    );
-  }
+  final catalog = FormCatalog.fromJson(_catalogJson, validators: _validators());
+  late final controller = FormController(catalog);
 
   @override
   void dispose() {
@@ -160,19 +156,24 @@ class _CustomValidatorsScenarioState extends State<CustomValidatorsScenario> {
               'digit; 111.111.111-11 is rejected.',
           'Birth date: 31/02/2000 fails "date"; a date 17 years ago '
               'passes "date" and fails "minAge".',
-          'Coupon is optional: empty is valid, "welcome10" is accepted.',
+          'Coupon is optional: empty is valid, "welcome10" is accepted. Its '
+              '"Unknown coupon" text comes from the catalog\'s message.',
           'IBAN: any non-empty value passes, because the app skips the '
               'unknown "iban" validator. The server stays the final '
               'authority.',
         ],
-        header: unknownTypes.isEmpty
+        header: catalog.issues.isEmpty
             ? null
             : Text(
-                'Skipped unknown validators: ${unknownTypes.join(', ')}',
+                'Skipped: ${catalog.issues.map((i) => '${i.path} ${i.detail}').join(', ')}',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
         snapshot: controller,
-        form: DynamicForm(controller: controller, registry: registry),
+        form: FormView(
+          controller: controller,
+          registry: registry,
+          localizer: _localizer,
+        ),
         bottomBar: SubmitButton(
           controller: controller,
           onValid: (payload) => showPayload(context, payload),

@@ -1,6 +1,6 @@
 import 'deep_equality.dart';
 import 'field_path.dart';
-import 'validators.dart' show isEmptyValue;
+import 'empty_value.dart';
 
 /// A rule over the form's values, such as "`maritalStatus` is `married`",
 /// used by `visibleWhen`, `enabledWhen` and `requiredWhen` (design doc 0001

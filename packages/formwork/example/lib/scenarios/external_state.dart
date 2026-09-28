@@ -30,7 +30,9 @@ const _catalogJson = <String, dynamic>{
       'type': 'text',
       'label': 'Why is it urgent?',
       'required': true,
-      'visibleWhen': {'field': 'priority', 'equals': 'high'},
+      'visibleWhen': {
+        'eq': ['priority', 'high'],
+      },
     },
     {
       'key': 'notify',
@@ -41,7 +43,7 @@ const _catalogJson = <String, dynamic>{
 };
 
 /// No controller: the screen owns a history of immutable snapshots and
-/// drives [DynamicFormView] with plain `setState`, the same shape a Cubit,
+/// drives [SnapshotFormView] with plain `setState`, the same shape a Cubit,
 /// a Riverpod Notifier or a Redux store would use. Every field, text
 /// included, shows what the current snapshot holds.
 class ExternalStateScenario extends StatefulWidget {
@@ -53,11 +55,14 @@ class ExternalStateScenario extends StatefulWidget {
 
 class _ExternalStateScenarioState extends State<ExternalStateScenario> {
   final registry = materialFieldRegistry();
-  final engine = FormEngine(config: FormConfig.fromMap(_catalogJson));
+  static const engine = FormEngine();
+  final catalog = FormCatalog.fromJson(_catalogJson);
+
+  FormSnapshot _fresh() => engine.registerAll(engine.initial(), catalog.fields);
 
   /// Every snapshot ever produced; the last one is current. Snapshots are
   /// immutable, so keeping old ones is safe and cheap.
-  late List<FormSnapshot> history = [engine.initial()];
+  late List<FormSnapshot> history = [_fresh()];
 
   /// The current snapshot, for the inspector.
   late final current = ValueNotifier(history.last);
@@ -71,7 +76,7 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
 
   void undo() => _setHistory(history.sublist(0, history.length - 1));
 
-  void reset() => _setHistory([engine.initial()]);
+  void reset() => _setHistory([_fresh()]);
 
   void fillSample() => push(
         [
@@ -79,7 +84,8 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
           ('priority', 'high'),
           ('reason', 'Blocks every user'),
           ('notify', true),
-        ].fold(current.value, (s, e) => engine.change(s, e.$1, e.$2)),
+        ].fold(
+            current.value, (s, e) => engine.change(s, FieldPath(e.$1), e.$2)),
       );
 
   void submit() {
@@ -124,15 +130,15 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
         ],
         header: Text('History: ${history.length} snapshot(s)'),
         snapshot: current,
-        form: DynamicFormView(
-          engine: engine,
+        form: SnapshotFormView(
           snapshot: current.value,
-          onChanged: (key, value) =>
-              push(engine.change(current.value, key, value)),
+          onChanged: (path, value) =>
+              push(engine.change(current.value, path, value)),
           registry: registry,
         ),
         bottomBar: FilledButton(
-          onPressed: current.value.submitAttempted && !current.value.isValid
+          onPressed: current.value.status.submitAttempted &&
+                  !current.value.status.isValid
               ? null
               : submit,
           child: const Text('Submit'),

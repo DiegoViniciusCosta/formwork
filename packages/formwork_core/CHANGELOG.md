@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Breaking:** the foundation engine replaces the 0.1 one. `FormEngine`
+  is `const` and holds nothing; fields register into the snapshot
+  (`registerAll`, `register`, `unregister`), and `FormSnapshot` exposes
+  accessors (`stateOf`, `valueOf`, `changedPaths`, `visibleFields`,
+  `payload()`, `status`, `undecodable`) instead of maps. `FormConfig`,
+  `FieldConfig`, `VisibilityRule`, `FieldOption`, the string validators
+  and `missingFields` are gone: use `FormCatalog.fromJson` or a `FormDef`
+  written in Dart, `Validator<T>`, and `catalog.onlyMissing`. Catalogs
+  write `visibleWhen` as a condition: `{"eq": ["maritalStatus",
+  "married"]}` instead of `{"field": ..., "equals": ...}`.
 - `FormStatus` and `SubmitOutcome` (design doc 0008 §1): the form-level
   facts, kept identical until one changes. The new engine's `submit`
   shows every error on the first attempt by giving those fields new

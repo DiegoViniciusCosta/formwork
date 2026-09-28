@@ -384,3 +384,14 @@ the parts of 0008 it needs), step 5:
 25. **Missing data and disabled fields:** a disabled field is never
     missing, whatever its value: the user cannot answer it, as with the
     engine, which does not validate it (decision 11).
+26. **Details of the switch that the docs left open:**
+    - `FormController.change(path, value)` takes a `FieldPath`, as the
+      engine does, so user data outside the form can change too.
+    - `SnapshotFieldView` takes `submitAttempted:`, since the error it
+      shows depends on it; `FormView` and `FieldView` read it from the
+      snapshot. It is not part of the rebuild check: the engine gives new
+      states to the fields whose error a submit shows (0004).
+    - `FormScope.maybeOf(context)` returns a `FormScopeData` with the four
+      references it carries.
+    - Debug reports use `FlutterError.reportError`, so they reach
+      `FlutterError.onError` and never throw.

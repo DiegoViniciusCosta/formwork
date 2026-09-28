@@ -60,7 +60,9 @@ const _catalogJson = <String, dynamic>{
       'type': 'text',
       'label': 'Spouse name',
       'required': true,
-      'visibleWhen': {'field': 'maritalStatus', 'equals': 'married'},
+      'visibleWhen': {
+        'eq': ['maritalStatus', 'married'],
+      },
     },
     {
       'key': 'hasVehicle',
@@ -81,14 +83,18 @@ const _catalogJson = <String, dynamic>{
         {'value': 'car', 'label': 'Car'},
         {'value': 'motorbike', 'label': 'Motorbike'},
       ],
-      'visibleWhen': {'field': 'hasVehicle', 'equals': 'yes'},
+      'visibleWhen': {
+        'eq': ['hasVehicle', 'yes'],
+      },
     },
     {
       'key': 'licensePlate',
       'type': 'text',
       'label': 'License plate',
       'required': true,
-      'visibleWhen': {'field': 'vehicleType', 'equals': 'car'},
+      'visibleWhen': {
+        'eq': ['vehicleType', 'car'],
+      },
     },
     {
       'key': 'nickname',
@@ -155,19 +161,30 @@ const _presets = <String, Map<String, Object?>>{
   },
 };
 
-// Validators return display text in the current 0.1 API. Design doc 0001
-// replaces this with error data (code plus params) and a localizer.
+/// Exactly [length] digits. Error: `digits`, `{'length': length}`.
+final class _Digits extends Validator<String> {
+  const _Digits(this.length);
+
+  final int length;
+
+  @override
+  ValidationError? validate(String value, _) =>
+      RegExp('^\\d{$length}\$').hasMatch(value)
+          ? null
+          : ValidationError('digits', params: {'length': length});
+}
+
 ValidatorRegistry _validators() => ValidatorRegistry()
-  ..register('digits', (spec) {
-    final length = spec['value'] as int;
-    return (v) => RegExp('^\\d{$length}\$').hasMatch(v.toString())
-        ? null
-        : spec['message'] as String? ?? 'Must have $length digits';
-  });
+  ..register('digits', (spec) => _Digits(spec['value']! as int));
+
+String _localizer(ValidationError error, FieldDef<Object?>? field) =>
+    error.code == 'digits'
+        ? 'Must have ${error.params['length']} digits'
+        : englishErrorLocalizer(error, field);
 
 /// How the form treats what the user already answered (design doc 0003).
 enum _Mode {
-  /// `missingFields`: only the questions still to be answered.
+  /// `onlyMissing`: only the questions still to be answered.
   onlyMissing('Only missing'),
 
   /// `missingKeys`: the whole form, missing fields highlighted.
@@ -179,13 +196,13 @@ enum _Mode {
 
 /// Wraps the Material builders so the fields in [missing] stand out. The
 /// set describes the stored data, so it is fixed for the session.
-FieldRegistry _highlighting(Set<String> missing) => FieldRegistry()
+FieldRegistry _highlighting(Set<FieldPath> missing) => FieldRegistry()
   ..registerAll({
     for (final MapEntry(key: type, value: build)
         in materialFieldBuilders.entries)
-      type: (context, field, ctx) {
-        final child = build(context, field, ctx);
-        if (!missing.contains(field.key)) return child;
+      type: (context, field) {
+        final child = build(context, field);
+        if (!missing.contains(field.def.path)) return child;
         return Container(
           padding: const EdgeInsets.only(left: 12),
           decoration: BoxDecoration(
@@ -268,36 +285,31 @@ class _ProfileForm extends StatefulWidget {
 
 class _ProfileFormState extends State<_ProfileForm> {
   late final FieldRegistry registry;
-  late final DynamicFormController? controller;
+  late final FormController? controller;
   bool saving = false;
 
   @override
   void initState() {
     super.initState();
-    final validators = _validators();
-    final catalog = FormConfig.fromMap(
-      _catalogJson,
-      supportedTypes: materialFieldRegistry().types,
-    );
+    final catalog =
+        FormCatalog.fromJson(_catalogJson, validators: _validators());
 
-    final FormConfig form;
+    final FormCatalog form;
     switch (widget.mode) {
       case _Mode.onlyMissing:
         registry = materialFieldRegistry();
-        form = missingFields(catalog, widget.userData, validators: validators);
+        form = catalog.onlyMissing(widget.userData);
       case _Mode.highlightMissing:
-        registry = _highlighting(
-          missingKeys(catalog, widget.userData, validators: validators),
-        );
+        registry = _highlighting(catalog.missingKeys(widget.userData));
         form = catalog;
     }
 
     controller = form.fields.isEmpty
         ? null
-        : DynamicFormController(
-            FormEngine(config: form, validators: validators),
+        : FormController(
+            form,
             // Prefills known answers, including a kept middle link.
-            initialData: widget.userData,
+            initialValues: widget.userData,
           );
   }
 
@@ -343,9 +355,10 @@ class _ProfileFormState extends State<_ProfileForm> {
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Center(child: Text('Profile complete: nothing to ask.')),
             )
-          : DynamicForm(
+          : FormView(
               controller: controller,
               registry: registry,
+              localizer: _localizer,
               enabled: !saving,
             ),
       bottomBar: controller == null

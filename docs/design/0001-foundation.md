@@ -290,9 +290,10 @@ Conditions (§4), settled in step 2:
    optional named parameter that decodes an operand given its path. It is
    additive, so `ConditionFactory` does not change. Built-in operators use
    it; a custom operator decodes its own operands.
-7. **Known cost of `isIn`:** `package:test` and `flutter_test` export a
-   matcher with the same name. A test file that imports both and uses
-   `isIn` must hide one of them.
+7. **Known cost of `isIn`, and of 0006's `matches`, `min` and `max`:**
+   `package:test` and `flutter_test` export matchers named `isIn` and
+   `matches`, and `dart:math` exports `min` and `max`. A file that
+   imports both and uses one of them must hide it from one side.
 
 Dependency graph (§5), settled in step 3:
 
@@ -328,3 +329,32 @@ The engine (§3, §6, and 0002 open question 2), settled in step 3:
 13. **A field that registers again comes back as it was:** value,
     `touched`, and the initial value `dirty` compares with. A change to
     its path while it is unregistered updates the value it will find.
+
+Definitions, codecs and catalogs (§3, and 0006 §1 to §3), settled in
+step 4:
+
+14. **Built-in definitions keep the catalog's type names:**
+    `TextFieldDef` (`"text"`), `NumberFieldDef` (`"number"`),
+    `ChoiceFieldDef<T>` (`"dropdown"`) and `BoolFieldDef` (`"checkbox"`).
+    Catalogs and the Material builders stay as they are. Any other value
+    type is a custom `FieldDef<T>` with a `codec:`.
+15. **`FieldCodec<T>`** is two functions, `encode` and `decode`. Built-in
+    codecs compare by value; an app's codec compares by identity.
+16. **`FormCatalog.fromJson`**, in the catalog library: a `FormDef` built
+    from JSON, which also lists what the tolerance rule skipped. It is
+    the `catalog` of 0004's `catalog.onlyMissing(data)`.
+17. **Message overrides live on the definition:** `FieldDef.messages`
+    maps an error code to text, as §2's per-field override. A catalog
+    validator's `"message"` fills it for that validator's code. Errors
+    stay a code plus params.
+18. **Values that do not decode** become `null`, as 0007 §2 says, and
+    `snapshot.undecodable` lists them with their raw value, until the
+    field gets a new value or is unregistered. A replacement with
+    another codec tries the raw value again.
+19. **A duplicated key throws when the form is registered**, not when
+    `FormDef` is constructed as 0006 §1 says: `fields` is a getter a
+    class overrides, so registration is the first point that sees the
+    whole list.
+20. **A path no field registers holds JSON**, in `change` as in
+    `initialValues`, so a field that registers there later decodes it.
+    An option whose value is neither JSON nor an enum needs `json:`.

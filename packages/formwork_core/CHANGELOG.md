@@ -1,5 +1,23 @@
 ## Unreleased
 
+- Forms in code (design docs 0001 §3 and 0006 §1 to §3, decisions 14 to
+  20):
+  - `TextFieldDef`, `NumberFieldDef`, `ChoiceFieldDef<T>` with `Option`,
+    and `BoolFieldDef`, with the catalog types `text`, `number`,
+    `dropdown` and `checkbox`. They compare by value.
+  - `FormDef`: a form as a class whose fields are members, or built from
+    a list. A duplicated key throws when the form is registered.
+  - Conditions from fields: `equals` and `isIn`, and on number fields
+    `greaterThan`, `greaterThanOrEqualTo`, `lessThan` and
+    `lessThanOrEqualTo`. A string on an enum field does not compile.
+  - Validators `minLength`, `maxLength`, `pattern`, `email`, `min`, `max`
+    and `matches`, typed: `min(1000)` on a text field does not compile.
+  - `FieldCodec<T>`: a field whose type is not JSON needs one, or
+    building it throws. Initial values are decoded when their field
+    registers, the payload is encoded, and values that do not decode are
+    listed in `undecodable`. A value set on a path no field registers is
+    JSON, like an initial value.
+  - `FieldDef.messages`: per-field text overrides by error code.
 - `FieldDef<T>` and `Validator<T>` (design doc 0001 §3, decisions 9 and
   12): the typed definition of a field, and rules that return error data
   and declare the other paths they read. `FieldState` now carries its

@@ -1,4 +1,7 @@
-import 'condition.dart';
+import 'condition.dart' as c;
+import 'condition.dart' show Condition;
+import 'deep_equality.dart';
+import 'field_codec.dart';
 import 'field_path.dart';
 import 'validation_error.dart';
 import 'validators.dart' show isEmptyValue;
@@ -28,14 +31,19 @@ abstract class Validator<T> {
 /// The definition of one field holding a [T] (design doc 0001 §3): where it
 /// lives, what it shows, and the rules it follows.
 ///
-/// Subclasses name their registry key in [type]. The base class compares
+/// Subclasses name their registry key in [type]. A [T] that is not
+/// `String`, `num` or `bool` needs a [codec] (design doc 0006 §3).
+///
+/// The base class compares
 /// by identity (design doc 0007 §3): a subclass that wants an equal
 /// re-registration to be free overrides `==` and `hashCode` over every
-/// parameter, lists and maps compared by content.
+/// parameter, its own and the ones declared here ([messages] and [codec]
+/// included), lists and maps compared by content.
 abstract class FieldDef<T> {
   /// A field at [key], which is also its payload key.
   ///
-  /// Throws a [FormatException] when [key] is not a valid [FieldPath].
+  /// Throws a [FormatException] when [key] is not a valid [FieldPath], and
+  /// an [ArgumentError] when [T] is not JSON and there is no [codec].
   FieldDef(
     String key, {
     this.label,
@@ -47,9 +55,13 @@ abstract class FieldDef<T> {
     List<Validator<T>> validators = const [],
     this.initialValue,
     Map<String, Object?> extra = const {},
+    Map<String, String> messages = const {},
+    FieldCodec<T>? codec,
   })  : path = FieldPath(key),
         validators = List.unmodifiable(validators),
-        extra = Map.unmodifiable(extra);
+        extra = Map.unmodifiable(freeze(extra)! as Map),
+        messages = Map.unmodifiable(messages),
+        codec = codec ?? JsonValueCodec<T>();
 
   /// Where the field lives in the form.
   final FieldPath path;
@@ -90,6 +102,21 @@ abstract class FieldDef<T> {
   /// Catalog keys this definition does not know, for custom builders.
   final Map<String, Object?> extra;
 
+  /// Text that replaces the localized message of an error, by error code,
+  /// for this field only (design doc 0001 §2 and decision 17).
+  final Map<String, String> messages;
+
+  /// Converts the value to and from JSON.
+  final FieldCodec<T> codec;
+
+  /// A condition that holds when this field's value equals [value]: the
+  /// same condition as `eq(key, value)`, checked by the compiler.
+  Condition equals(T value) => c.eq(path.toString(), value);
+
+  /// A condition that holds when this field's value is one of [values]: the
+  /// same condition as `isIn(key, values)`.
+  Condition isIn(List<T> values) => c.isIn(path.toString(), values);
+
   /// The paths this field's conditions read.
   Set<FieldPath> get conditionReads => {
         ...?visibleWhen?.reads,
@@ -122,6 +149,57 @@ abstract class FieldDef<T> {
   @override
   String toString() => '$runtimeType($path)';
 }
+
+/// Whether [a] and [b] are equal in every parameter [FieldDef] declares,
+/// lists and maps by content. Built-in definitions compare with it and add
+/// their own parameters. Engine-side; the package barrel does not export
+/// it.
+bool sameFieldDef(FieldDef<Object?> a, FieldDef<Object?> b) =>
+    a.runtimeType == b.runtimeType &&
+    a.path == b.path &&
+    a.label == b.label &&
+    a.hint == b.hint &&
+    a.required == b.required &&
+    a.visibleWhen == b.visibleWhen &&
+    a.enabledWhen == b.enabledWhen &&
+    a.requiredWhen == b.requiredWhen &&
+    deepEquals(a.validators, b.validators) &&
+    deepEquals(a.initialValue, b.initialValue) &&
+    deepEquals(a.extra, b.extra) &&
+    deepEquals(a.messages, b.messages) &&
+    a.codec == b.codec;
+
+/// A hash consistent with [sameFieldDef].
+int fieldDefHash(FieldDef<Object?> def) => Object.hash(
+      def.runtimeType,
+      def.path,
+      def.label,
+      def.hint,
+      def.required,
+      def.visibleWhen,
+      def.enabledWhen,
+      def.requiredWhen,
+      deepHash(def.validators),
+      deepHash(def.initialValue),
+      deepHash(def.extra),
+      deepHash(def.messages),
+      def.codec,
+    );
+
+/// Decodes [json] for [def]. Returns `(null, true)` for `null`, and
+/// `(null, false)` when [def]'s codec rejects it. Engine-side.
+(Object?, bool) decodeFieldValue(FieldDef<Object?> def, Object? json) {
+  if (json == null) return (null, true);
+  try {
+    return (def.codec.decode(json), true);
+  } on Object {
+    return (null, false);
+  }
+}
+
+/// Encodes [value] for [def]; `null` stays `null`. Engine-side.
+Object? encodeFieldValue(FieldDef<Object?> def, Object? value) =>
+    value == null ? null : def.codec.encode(value);
 
 /// The error of [def] for [value]: `required` when it is empty and
 /// [required], otherwise the first validator's error. Engine-side; the

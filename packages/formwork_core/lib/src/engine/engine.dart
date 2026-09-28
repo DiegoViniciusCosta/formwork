@@ -23,6 +23,7 @@ final class FormSnapshot {
     required int nextSeq,
     required Map<FieldPath, Object?> data,
     required PersistentMap<FieldPath, _Retired> retired,
+    required PersistentMap<FieldPath, Object?> undecodable,
     required DependencyGraph graph,
     required this.changedPaths,
     required int errorCount,
@@ -32,6 +33,7 @@ final class FormSnapshot {
         _nextSeq = nextSeq,
         _data = data,
         _retired = retired,
+        _undecodable = undecodable,
         _graph = graph,
         _errorCount = errorCount,
         _visible = visible;
@@ -51,6 +53,8 @@ final class FormSnapshot {
   /// Fields that were registered and then removed: their last value and
   /// generation. Dependents see them as inactive (design doc 0007 §2).
   final PersistentMap<FieldPath, _Retired> _retired;
+
+  final PersistentMap<FieldPath, Object?> _undecodable;
 
   final DependencyGraph _graph;
 
@@ -78,11 +82,19 @@ final class FormSnapshot {
   List<FieldDef<Object?>> get visibleFields => _visible.value ??=
       List.unmodifiable([for (final s in _activeStates()) s.def]);
 
-  /// The values of the active fields, keyed by path, in registration order.
-  /// Disabled fields are included: they are read-only data.
+  /// The values of the active fields as JSON, through each field's codec,
+  /// keyed by path, in registration order. Disabled fields are included:
+  /// they are read-only data.
   Map<String, Object?> payload() => {
-        for (final s in _activeStates()) s.def.path.toString(): s.value,
+        for (final s in _activeStates())
+          s.def.path.toString(): encodeFieldValue(s.def, s.value),
       };
+
+  /// Raw values that a registered field's codec could not decode, by path
+  /// (decision 18 of design doc 0001). The field holds `null` instead. An
+  /// entry leaves when its field gets a new value or is unregistered.
+  Map<FieldPath, Object?> get undecodable =>
+      Map.unmodifiable(Map.fromEntries(_undecodable.entries));
 
   Iterable<FieldState> _activeStates() sync* {
     for (var seq = 0; seq < _nextSeq; seq++) {
@@ -125,6 +137,7 @@ final class FormEngine {
           for (final e in initialValues.entries) FieldPath(e.key): e.value,
         }),
         retired: const PersistentMap.empty(),
+        undecodable: const PersistentMap.empty(),
         graph: const DependencyGraph.empty(),
         changedPaths: const {},
         errorCount: 0,
@@ -145,14 +158,22 @@ final class FormEngine {
   /// - A different definition replaces the old one, keeping the value and
   ///   the position, and moves the field's generation.
   ///
+  /// Initial values arrive as JSON and are decoded by each field's codec
+  /// as it registers; see [FormSnapshot.undecodable].
+  ///
   /// Throws a [CycleError] when the conditions of the fields would read
-  /// each other; nothing is registered then.
+  /// each other, and an [ArgumentError] when two of [defs] share a key;
+  /// nothing is registered then.
   FormSnapshot registerAll(
     FormSnapshot s,
     Iterable<FieldDef<Object?>> defs,
   ) {
     final t = _Transition(s);
+    final seen = <FieldPath>{};
     for (final def in defs) {
+      if (!seen.add(def.path)) {
+        throw ArgumentError.value(def.path.toString(), 'defs', 'Duplicate key');
+      }
       t.register(def);
     }
     return t.finish();
@@ -171,7 +192,13 @@ final class FormEngine {
   ///
   /// For a registered field this marks it touched, updates `dirty`, and
   /// revalidates it and every field whose rules read it; nothing else is
-  /// recomputed. Any other path is user data that conditions may read.
+  /// recomputed. [value] is then of the field's type.
+  ///
+  /// A path no field registers is user data that conditions may read. Its
+  /// [value] is JSON, as in `initialValues`, and a field that registers
+  /// there later decodes it. A path whose field was unregistered keeps a
+  /// value of that field's type, for when it comes back.
+  ///
   /// Returns [s] when nothing changes.
   FormSnapshot change(FormSnapshot s, FieldPath path, Object? value) =>
       (_Transition(s)..change(path, value)).finish();
@@ -190,12 +217,15 @@ final class _Entry {
 /// What an unregistered field leaves behind, for when it comes back.
 final class _Retired {
   const _Retired(
+    this.def,
     this.value,
     this.generation,
     this.initial, {
     required this.touched,
   });
 
+  /// The definition the value was decoded with.
+  final FieldDef<Object?> def;
   final Object? value;
   final int generation;
   final Object? initial;
@@ -220,6 +250,7 @@ final class _Transition {
         nextSeq = from._nextSeq,
         data = from._data,
         retired = from._retired,
+        undecodable = from._undecodable,
         graph = from._graph,
         errorCount = from._errorCount;
 
@@ -229,6 +260,7 @@ final class _Transition {
   int nextSeq;
   Map<FieldPath, Object?> data;
   PersistentMap<FieldPath, _Retired> retired;
+  PersistentMap<FieldPath, Object?> undecodable;
   DependencyGraph graph;
   int errorCount;
 
@@ -251,31 +283,46 @@ final class _Transition {
     );
 
     if (old != null) {
+      final from = old.state.def;
+      // An undecodable value was null from registration on, so it was
+      // also the initial value: a second chance applies to both.
+      final secondChance = undecodable.containsKey(path) && old.initial == null;
+      final value = _recode(path, from, def, old.state.value);
+      final initial =
+          secondChance ? value : _recode(null, from, def, old.initial);
       _put(
         path,
         _Entry(
-          old.state.copyWith(def: def, generation: old.state.generation + 1),
+          old.state.copyWith(
+            def: def,
+            value: value,
+            dirty: !deepEquals(value, initial),
+            generation: old.state.generation + 1,
+          ),
           old.seq,
-          old.initial,
+          initial,
         ),
         old.state,
       );
       // The visible list holds definitions: a new one must reach it.
       if (old.state.visible) activeSetChanged = true;
       _enqueue(path);
+      // A new codec can change the value, which its readers see.
+      _enqueueReaders(path);
       return;
     }
 
     final gone = retired[path];
     final value = gone != null
-        ? gone.value
+        ? _recode(path, gone.def, def, gone.value)
         : data.containsKey(path)
-            ? data[path]
+            ? _decode(path, def, data[path])
             : def.initialValue;
     retired = retired.remove(path);
     final seq = nextSeq++;
     order = order.put(seq, path);
-    final initial = gone != null ? gone.initial : value;
+    final initial =
+        gone != null ? _recode(null, gone.def, def, gone.initial) : value;
     // Starts hidden and without error; recomputing sets the real state. A
     // field that comes back finds itself as it was: value, touched, dirty.
     final state = FieldState(
@@ -299,6 +346,7 @@ final class _Transition {
     retired = retired.put(
       path,
       _Retired(
+        old.state.def,
         old.state.value,
         old.state.generation,
         old.initial,
@@ -306,6 +354,7 @@ final class _Transition {
       ),
     );
     graph = graph.remove(path);
+    undecodable = undecodable.remove(path);
     if (old.state.error != null) errorCount--;
     if (old.state.visible) activeSetChanged = true;
     changed.add(path);
@@ -322,7 +371,13 @@ final class _Transition {
         if (deepEquals(gone.value, value)) return;
         retired = retired.put(
           path,
-          _Retired(value, gone.generation, gone.initial, touched: gone.touched),
+          _Retired(
+            gone.def,
+            value,
+            gone.generation,
+            gone.initial,
+            touched: gone.touched,
+          ),
         );
       } else {
         if (data.containsKey(path) && deepEquals(data[path], value)) return;
@@ -333,6 +388,7 @@ final class _Transition {
     }
     final state = old.state;
     if (state.touched && deepEquals(state.value, value)) return;
+    undecodable = undecodable.remove(path);
     _put(
       path,
       _Entry(
@@ -354,7 +410,8 @@ final class _Transition {
     _settle();
     if (changed.isEmpty &&
         identical(data, from._data) &&
-        identical(retired, from._retired)) {
+        identical(retired, from._retired) &&
+        identical(undecodable, from._undecodable)) {
       return from;
     }
     return FormSnapshot._(
@@ -363,6 +420,7 @@ final class _Transition {
       nextSeq: nextSeq,
       data: data,
       retired: retired,
+      undecodable: undecodable,
       graph: graph,
       changedPaths: Set.unmodifiable(changed),
       errorCount: errorCount,
@@ -425,6 +483,44 @@ final class _Transition {
       }
     }
     return condition.evaluate(_valueAt);
+  }
+
+  /// [json] decoded by [def]'s codec. A value it rejects becomes `null`
+  /// and is listed in `undecodable` under [path].
+  Object? _decode(FieldPath path, FieldDef<Object?> def, Object? json) {
+    final (value, ok) = decodeFieldValue(def, json);
+    undecodable = ok ? undecodable.remove(path) : undecodable.put(path, json);
+    return value;
+  }
+
+  /// [value], decoded by [from], converted for [to]: encoded with the old
+  /// codec and decoded with the new one when they differ (design doc 0007
+  /// §2). A failure is listed under [path], unless [path] is `null`.
+  Object? _recode(
+    FieldPath? path,
+    FieldDef<Object?> from,
+    FieldDef<Object?> to,
+    Object? value,
+  ) {
+    if (from.codec == to.codec) return value;
+    if (value == null) {
+      // A raw value the old codec rejected gets a second chance.
+      if (path != null && undecodable.containsKey(path)) {
+        return _decode(path, to, undecodable[path]);
+      }
+      return null;
+    }
+    Object? json;
+    try {
+      json = encodeFieldValue(from, value);
+    } on Object {
+      json = value;
+    }
+    final (decoded, ok) = decodeFieldValue(to, json);
+    if (path != null) {
+      undecodable = ok ? undecodable.remove(path) : undecodable.put(path, json);
+    }
+    return decoded;
   }
 
   Object? _valueAt(FieldPath path) {

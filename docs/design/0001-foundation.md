@@ -256,3 +256,40 @@ adding it later is not a breaking change.
    plan, not a refusal.
 2. **Relative paths inside list items** (`$item.age`): decided together
    with the list UI, in its own doc.
+
+## Decided during implementation (2026-09-28)
+
+Conditions (§4), settled in step 2:
+
+1. **`in` is `isIn` in Dart**, a reserved word otherwise. It matches the
+   field helper of 0006. JSON keeps `"in"`.
+2. **`empty` counts what `required` counts as empty:** `null`, blank
+   text, `false` and an empty collection. One notion of empty in the
+   library. `eq(path, false)` tells "answered no" apart from "not
+   answered".
+3. **An unknown operator drops the whole condition**, nested ones
+   included, and is reported. The field behaves as if it had no such
+   rule: visible, not required, enabled. Dropping only the unknown branch
+   would change what the rest means. A malformed condition throws, as a
+   malformed validator spec does.
+4. **JSON shapes.** A condition is an object with exactly one key, its
+   operator:
+
+   | Operator                             | Arguments                |
+   |--------------------------------------|--------------------------|
+   | `eq`, `ne`, `gt`, `gte`, `lt`, `lte` | `["path", value]`        |
+   | `in`                                 | `["path", [value, ...]]` |
+   | `empty`                              | `["path"]`               |
+   | `all`, `any`                         | `[condition, ...]`       |
+   | `not`                                | `condition`              |
+
+5. **Custom operators** register in a `ConditionRegistry`, like
+   validators: `register(operator, (args, decode) => ...)`, where `decode`
+   decodes nested conditions.
+6. **Operands through field codecs (step 4, 0006 §3).** `decode` gains an
+   optional named parameter that decodes an operand given its path. It is
+   additive, so `ConditionFactory` does not change. Built-in operators use
+   it; a custom operator decodes its own operands.
+7. **Known cost of `isIn`:** `package:test` and `flutter_test` export a
+   matcher with the same name. A test file that imports both and uses
+   `isIn` must hide one of them.

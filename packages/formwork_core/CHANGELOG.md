@@ -1,5 +1,16 @@
 ## Unreleased
 
+- Conditions (design doc 0001, step 2), not used by the engine yet:
+  - `Condition`: a rule over the form's values, as a tree of data that
+    lists the paths it reads and compares by value. Built with `eq`,
+    `ne`, `isIn` (`in` in JSON), `gt`, `gte`, `lt`, `lte`, `empty`, `all`,
+    `any` and `not`. `empty` counts what `required` counts as empty;
+  - `ConditionRegistry`: decodes JSON conditions and takes custom
+    operators. An unknown operator drops the whole condition and is
+    reported, so the field behaves as if it had no such rule.
+- Fix: an empty map now counts as empty for `required`, as an empty list
+  already did. Sets inside `ValidationError.params` compare correctly in
+  both directions.
 - Foundation data types (design doc 0001, step 1), not used by the engine
   yet:
   - `FieldPath`: a field's address, with groups (`address.zipCode`) and

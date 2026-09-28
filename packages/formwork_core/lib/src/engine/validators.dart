@@ -6,13 +6,14 @@ typedef FieldValidator = String? Function(Object? value);
 /// Builds a validator from its spec, e.g. `{'type': 'minLength', 'value': 3}`.
 typedef ValidatorFactory = FieldValidator Function(Map<String, dynamic> spec);
 
-/// Whether [v] counts as empty: `null`, blank string, `false` or empty
-/// collection.
+/// Whether [v] counts as empty: `null`, blank string, `false`, or an empty
+/// collection or map.
 bool isEmptyValue(Object? v) =>
     v == null ||
     (v is String && v.trim().isEmpty) ||
     (v is bool && !v) ||
-    (v is Iterable && v.isEmpty);
+    (v is Iterable && v.isEmpty) ||
+    (v is Map && v.isEmpty);
 
 String _msg(Map<String, dynamic> spec, String fallback) =>
     spec['message'] as String? ?? fallback;

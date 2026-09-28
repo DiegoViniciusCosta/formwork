@@ -5,7 +5,9 @@
 /// re-exports this library.
 library;
 
+export 'src/catalog/condition_registry.dart';
 export 'src/catalog/missing_fields.dart';
+export 'src/engine/condition.dart';
 export 'src/engine/field_config.dart';
 export 'src/engine/field_path.dart' show FieldPath;
 export 'src/engine/field_state.dart' show FieldState;

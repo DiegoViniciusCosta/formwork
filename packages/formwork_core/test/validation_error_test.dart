@@ -63,6 +63,23 @@ void main() {
       expect(error.hashCode, hash);
     });
 
+    test('sets compare by content in both directions', () {
+      expect(
+        ValidationError('x', params: {
+          's': {
+            [1],
+            [1, 1],
+          },
+        }),
+        isNot(ValidationError('x', params: {
+          's': {
+            [1],
+            [2],
+          },
+        })),
+      );
+    });
+
     test('sets and nested maps in params compare by value', () {
       expect(
         ValidationError('x', params: {

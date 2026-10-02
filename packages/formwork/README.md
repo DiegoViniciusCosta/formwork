@@ -191,6 +191,18 @@ conditions:
 
 Any other key is kept in `FieldDef.extra`, for custom builders.
 
+A `group` puts fields under one key, and the payload nests them:
+
+```json
+{ "key": "address", "type": "group", "fields": [
+  { "key": "zipCode", "type": "text", "required": true } ] }
+```
+
+The field's path is `address.zipCode` (in code, `TextFieldDef('address.zipCode')`),
+and the payload holds `{"address": {"zipCode": "..."}}`. Initial values
+take the same shape. Rules read fields, never a whole group:
+`{"empty": ["address.zipCode"]}`, not `{"empty": ["address"]}`.
+
 Built-in validators: `required`, `minLength`, `maxLength`, `pattern`,
 `email`, `min`, `max` and `matches` (`{"type": "matches", "field":
 "password"}`). Validators return error codes, never text: an

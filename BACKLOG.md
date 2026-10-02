@@ -34,11 +34,15 @@ Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
   `FormStatusBuilder`, `focusNode` no `FieldProps` e `FormFocus`. Erros
   do servidor para caminhos sem campo são descartados (emendas no 0007 e
   no 0008);
+- 0001 passo 6, grupos (design doc 0009 §1 e §2, 2026-10-02): payload e
+  `initialValues` aninhados, `group` no catálogo, decisão 29 (regras
+  leem só campos);
 - teste de "trabalho por mudança".
 
 Falta:
-- **0001 passo 6:** `group` e `list` no engine. Regras leem só campos,
-  nunca um grupo ou uma lista inteira (decisão 29 do 0001, 2026-10-02).
+- **0001 passo 6, listas** (design doc 0009 §3 a §5): `ListFieldDef`,
+  `addItem`/`removeItem`/`moveItem`, ids estáveis, erros do servidor por
+  índice. Os grupos já saíram (2026-10-02).
 - **0006 §5:** o layout vindo do servidor (seções e linhas) e o
   `LayoutRegistry`.
 

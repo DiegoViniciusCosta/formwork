@@ -6,6 +6,7 @@ import 'field_def.dart';
 import 'field_path.dart';
 import 'field_state.dart';
 import 'form_status.dart';
+import 'nested_json.dart';
 import 'persistent_map.dart';
 import 'server_errors.dart';
 import 'validation_error.dart';
@@ -32,6 +33,7 @@ final class FormSnapshot {
     required this.status,
     required PersistentMap<FieldPath, bool> errored,
     required int dirtyCount,
+    required PersistentMap<FieldPath, int> groups,
     required int clock,
     required int submitStartedAt,
     required _VisibleList visible,
@@ -44,6 +46,7 @@ final class FormSnapshot {
         _graph = graph,
         _errored = errored,
         _dirtyCount = dirtyCount,
+        _groups = groups,
         _clock = clock,
         _submitStartedAt = submitStartedAt,
         _visible = visible;
@@ -73,6 +76,10 @@ final class FormSnapshot {
 
   /// How many fields differ from their initial value.
   final int _dirtyCount;
+
+  /// Group path -> how many registered fields it holds (design doc 0009
+  /// §1). A path in here is a group, never a field.
+  final PersistentMap<FieldPath, int> _groups;
 
   /// Counts registrations and the user's changes to fields, to tell which
   /// ones changed during a submit.
@@ -107,12 +114,14 @@ final class FormSnapshot {
       List.unmodifiable([for (final s in _activeStates()) s.def]);
 
   /// The values of the active fields as JSON, through each field's codec,
-  /// keyed by path, in registration order. Disabled fields are included:
-  /// they are read-only data.
-  Map<String, Object?> payload() => {
+  /// in registration order. Groups become nested objects (design doc 0009
+  /// §2): `address.zipCode` is `{'address': {'zipCode': ...}}`. A group
+  /// with no active field is left out. Disabled fields are included: they
+  /// are read-only data.
+  Map<String, Object?> payload() => nestJson([
         for (final s in _activeStates())
-          s.def.path.toString(): encodeFieldValue(s.def, s.value),
-      };
+          (s.def.path, encodeFieldValue(s.def, s.value)),
+      ]);
 
   /// Raw values that a registered field's codec could not decode, by path
   /// (decision 18 of design doc 0001). The field holds `null` instead. An
@@ -158,15 +167,15 @@ final class FormEngine {
   ///
   /// [initialValues] is what is already known, keyed by path: it fills
   /// fields as they register, and conditions read the values of paths that
-  /// no field registers.
+  /// no field registers. It takes the payload's shape: a field finds its
+  /// value through nested objects, and a key given flat (`address.zipCode`)
+  /// wins over a nested one (design doc 0009 §2).
   FormSnapshot initial({Map<String, Object?> initialValues = const {}}) =>
       FormSnapshot._(
         entries: const PersistentMap.empty(),
         order: const PersistentMap.empty(),
         nextSeq: 0,
-        data: Map.unmodifiable({
-          for (final e in initialValues.entries) FieldPath(e.key): e.value,
-        }),
+        data: Map.unmodifiable(flattenJson(initialValues)),
         retired: const PersistentMap.empty(),
         undecodable: const PersistentMap.empty(),
         graph: const DependencyGraph.empty(),
@@ -174,6 +183,7 @@ final class FormEngine {
         status: const FormStatus(),
         errored: const PersistentMap.empty(),
         dirtyCount: 0,
+        groups: const PersistentMap.empty(),
         clock: 0,
         submitStartedAt: 0,
         visible: _VisibleList(),
@@ -197,8 +207,12 @@ final class FormEngine {
   /// as it registers; see [FormSnapshot.undecodable].
   ///
   /// Throws a [CycleError] when the conditions of the fields would read
-  /// each other, and an [ArgumentError] when two of [defs] share a key;
-  /// nothing is registered then.
+  /// each other. Throws an [ArgumentError] when two of [defs] share a key,
+  /// when a key is both a field and a group (`address` and
+  /// `address.zipCode`), or when a rule reads a group instead of a field
+  /// (decision 29 of design doc 0001), and when a key addresses a list
+  /// item, until lists ship (design doc 0009 §3). Nothing is registered
+  /// then.
   FormSnapshot registerAll(
     FormSnapshot s,
     Iterable<FieldDef<Object?>> defs,
@@ -345,6 +359,7 @@ final class _Transition {
         graph = from._graph,
         errored = from._errored,
         dirtyCount = from._dirtyCount,
+        groups = from._groups,
         clock = from._clock,
         submitStartedAt = from._submitStartedAt,
         submitCount = from.status.submitCount,
@@ -362,6 +377,7 @@ final class _Transition {
   DependencyGraph graph;
   PersistentMap<FieldPath, bool> errored;
   int dirtyCount;
+  PersistentMap<FieldPath, int> groups;
   int clock;
   int submitStartedAt;
   int submitCount;
@@ -386,6 +402,13 @@ final class _Transition {
       conditionReads: def.conditionReads,
       validatorReads: def.validatorReads,
     );
+    if (old == null) _enterGroups(path);
+    for (final read in {...def.conditionReads, ...def.validatorReads}) {
+      if (groups.containsKey(read)) {
+        throw ArgumentError.value('$path', 'defs',
+            'Its rules read the group $read; rules read fields (0001, 29)');
+      }
+    }
 
     if (old != null) {
       final from = old.state.def;
@@ -447,9 +470,37 @@ final class _Transition {
     _enqueueReaders(path);
   }
 
+  /// Records a new field at [path] in its groups, after checking that
+  /// [path] is not a group, is not inside a field, and is not inside a
+  /// group some rule reads.
+  void _enterGroups(FieldPath path) {
+    if (path.segments.any((s) => s is! KeySegment)) {
+      throw ArgumentError.value(
+          '$path', 'defs', 'A list item; lists come later (0009 §3)');
+    }
+    if (groups.containsKey(path)) {
+      throw ArgumentError.value('$path', 'defs', 'A group, not a field');
+    }
+    for (var group = path.parent; group != null; group = group.parent) {
+      if (entries.containsKey(group)) {
+        throw ArgumentError.value('$path', 'defs', 'Inside the field $group');
+      }
+      if (graph.conditionDependents(group).isNotEmpty ||
+          graph.validatorDependents(group).isNotEmpty) {
+        throw ArgumentError.value('$path', 'defs',
+            'Makes $group a group, which a rule reads (0001, 29)');
+      }
+      groups = groups.put(group, (groups[group] ?? 0) + 1);
+    }
+  }
+
   void unregister(FieldPath path) {
     final old = entries[path];
     if (old == null) return;
+    for (var group = path.parent; group != null; group = group.parent) {
+      final count = groups[group]! - 1;
+      groups = count == 0 ? groups.remove(group) : groups.put(group, count);
+    }
     entries = entries.remove(path);
     order = order.remove(old.seq);
     retired = retired.put(
@@ -570,7 +621,8 @@ final class _Transition {
         identical(status, from.status) &&
         identical(data, from._data) &&
         identical(retired, from._retired) &&
-        identical(undecodable, from._undecodable)) {
+        identical(undecodable, from._undecodable) &&
+        identical(groups, from._groups)) {
       return from;
     }
     return FormSnapshot._(
@@ -585,6 +637,7 @@ final class _Transition {
       status: status,
       errored: errored,
       dirtyCount: dirtyCount,
+      groups: groups,
       clock: clock,
       submitStartedAt: submitStartedAt,
       visible: activeSetChanged ? _VisibleList() : from._visible,

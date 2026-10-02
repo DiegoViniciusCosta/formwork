@@ -29,6 +29,15 @@ enum CatalogIssueKind {
 
   /// A field whose conditions would close a cycle; the field is skipped.
   cycle,
+
+  /// A rule (`visibleWhen`, `validators`, ...) on a group; the rule is
+  /// skipped, the group's fields are kept (design doc 0009 §1). The detail
+  /// is the rule's key.
+  ruleOnGroup,
+
+  /// A field whose rules read a group instead of a field; the field is
+  /// skipped (decision 29 of design doc 0001). The detail is the group.
+  readsGroup,
 }
 
 /// Something the tolerance rule skipped while reading a catalog: the
@@ -44,7 +53,8 @@ final class CatalogIssue {
   /// The field it happened in.
   final FieldPath path;
 
-  /// The unknown name, the rejected value, or the paths of a cycle.
+  /// The unknown name, the rejected value, the paths of a cycle, the rule
+  /// on a group, or the group a field reads.
   final Object? detail;
 
   @override
@@ -183,12 +193,16 @@ final class FormCatalog extends FormDef {
   /// Condition operands are decoded through the codec of the field they
   /// read, so `{"eq": ["maritalStatus", "married"]}` equals
   /// `maritalStatus.equals(MaritalStatus.married)` (design doc 0006 §3).
-  /// Unknown types, validators and operators, values that do not decode,
-  /// and fields that would close a cycle are skipped and listed in
-  /// [issues]. A field skipped for a cycle reports only the cycle.
+  /// A `group` entry expands into its fields, under its key (design doc
+  /// 0009 §1). Unknown types, validators and operators, values that do not
+  /// decode, fields that would close a cycle, fields whose rules read a
+  /// group, and rules on a group are skipped and listed in [issues]. A
+  /// field skipped for a cycle reports only the cycle. A path counts as a
+  /// group when the catalog puts any field under it, even one skipped.
   ///
-  /// Throws a [FormatException] when [json] is malformed, or when two
-  /// fields share a key.
+  /// Throws a [FormatException] when [json] is malformed, when two fields
+  /// share a key, when a key is both a field and a group, or when a key
+  /// addresses a list item (lists come later, 0009 §3).
   factory FormCatalog.fromJson(
     Map<String, Object?> json, {
     FieldTypeRegistry? types,
@@ -242,14 +256,16 @@ final class _Reader {
   /// any path outside the form.
   final outside = <FieldPath>{};
 
+  /// Group issues, by the index of the first entry after them.
+  final groupIssues = <int, List<CatalogIssue>>{};
+
+  /// Every path that holds fields: a strict ancestor of a field's path.
+  final groupPaths = <FieldPath>{};
+
   FormCatalog read(Map<String, Object?> json) {
-    final entries = [
-      for (final raw in _list(json['fields'], 'fields'))
-        switch (raw) {
-          final Map<Object?, Object?> map => _object(map),
-          _ => throw FormatException('A field is an object', raw),
-        },
-    ];
+    final entries = <Map<String, Object?>>[];
+    _expand(json['fields'], null, entries);
+    _checkGroups(entries);
     final schemaVersion = switch (json['schemaVersion']) {
       null => 1,
       final int version => version,
@@ -279,19 +295,21 @@ final class _Reader {
     }
 
     var built = _build(entries, known);
-    if (built.cycles.isNotEmpty) {
+    if (built.skipped.isNotEmpty) {
       // Operands on a skipped field's path must be read as JSON, so build
       // again. A condition may gain a read of a skipped path, which has no
       // edges of its own, so no new cycle can form.
-      outside.addAll(built.cycles);
+      outside.addAll(built.skipped);
       built = _build(entries, known);
     }
 
     return FormCatalog._(
       built.fields,
       List.unmodifiable([
-        for (var i = 0; i < entries.length; i++)
-          ...?early[i] ?? built.issues[i],
+        for (var i = 0; i <= entries.length; i++) ...[
+          ...?groupIssues[i],
+          if (i < entries.length) ...?early[i] ?? built.issues[i],
+        ],
       ]),
       schemaVersion,
     );
@@ -300,28 +318,101 @@ final class _Reader {
   ({
     List<FieldDef<Object?>> fields,
     Map<int, List<CatalogIssue>> issues,
-    Set<FieldPath> cycles,
+    Set<FieldPath> skipped,
   }) _build(List<Map<String, Object?>> entries, List<int> known) {
     var graph = const DependencyGraph.empty();
     final fields = <FieldDef<Object?>>[];
     final issues = <int, List<CatalogIssue>>{};
-    final cycles = <FieldPath>{};
+    final skipped = <FieldPath>{};
     for (final i in known) {
       final entry = entries[i];
       final own = sink = <CatalogIssue>[];
       final def = types._factory(entry['type']! as String)!(_field(entry));
       sink = null;
+      final group = {...def.conditionReads, ...def.validatorReads}
+          .where(groupPaths.contains)
+          .firstOrNull;
+      if (group != null) {
+        skipped.add(def.path);
+        issues[i] = [
+          CatalogIssue(CatalogIssueKind.readsGroup, def.path, group)
+        ];
+        continue;
+      }
       try {
         graph = graph.add(def.path, conditionReads: def.conditionReads);
       } on CycleError catch (e) {
-        cycles.add(def.path);
+        skipped.add(def.path);
         issues[i] = [CatalogIssue(CatalogIssueKind.cycle, def.path, e.paths)];
         continue;
       }
       issues[i] = own;
       fields.add(def);
     }
-    return (fields: fields, issues: issues, cycles: cycles);
+    return (fields: fields, issues: issues, skipped: skipped);
+  }
+
+  static const _groupRules = [
+    'required',
+    'visibleWhen',
+    'enabledWhen',
+    'requiredWhen',
+    'validators',
+  ];
+
+  /// Appends the entries of [json], a `fields` list, to [into], with each
+  /// key under [prefix] and each group replaced by its fields (design doc
+  /// 0009 §1).
+  void _expand(
+    Object? json,
+    FieldPath? prefix,
+    List<Map<String, Object?>> into,
+  ) {
+    for (final raw in _list(json, 'fields')) {
+      final entry = switch (raw) {
+        final Map<Object?, Object?> map => _object(map),
+        _ => throw FormatException('A field is an object', raw),
+      };
+      final key = entry['key'];
+      if (key is! String || entry['type'] is! String) {
+        throw FormatException('A field needs a key and a type', entry);
+      }
+      final FieldPath path;
+      try {
+        path = prefix == null ? FieldPath(key) : prefix.child(key);
+      } on ArgumentError {
+        throw FormatException('Bad key "$key" in group "$prefix"', entry);
+      }
+      if (entry['type'] != 'group') {
+        into.add(Map.unmodifiable({...entry, 'key': '$path'}));
+        continue;
+      }
+      for (final rule in _groupRules) {
+        if (entry.containsKey(rule)) {
+          (groupIssues[into.length] ??= [])
+              .add(CatalogIssue(CatalogIssueKind.ruleOnGroup, path, rule));
+        }
+      }
+      _expand(entry['fields'], path, into);
+    }
+  }
+
+  /// Fills [groupPaths], and throws when a key is both a field and a group.
+  void _checkGroups(List<Map<String, Object?>> entries) {
+    final fieldPaths = {
+      for (final entry in entries) FieldPath(entry['key']! as String),
+    };
+    for (final path in fieldPaths) {
+      if (path.segments.any((s) => s is! KeySegment)) {
+        throw FormatException('"$path" is a list item; lists come later');
+      }
+      for (var group = path.parent; group != null; group = group.parent) {
+        if (fieldPaths.contains(group)) {
+          throw FormatException('"$group" is both a field and a group');
+        }
+        groupPaths.add(group);
+      }
+    }
   }
 
   FieldJson _field(Map<String, Object?> entry, {bool probe = false}) {

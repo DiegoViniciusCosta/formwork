@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Groups: the payload nests fields under their group (`{"address":
+  {"zipCode": ...}}`), as `formwork_core` describes.
 - Sending and focus (design doc 0008): `controller.submitTo(send)`, where
   `send` is a `FormSender`, submits, sends a valid payload, records the
   server's answer, and moves focus to the first field with an error,

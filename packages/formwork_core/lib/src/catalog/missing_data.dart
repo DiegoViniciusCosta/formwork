@@ -1,5 +1,6 @@
 import '../engine/field_def.dart';
 import '../engine/field_path.dart';
+import '../engine/nested_json.dart';
 import 'form_catalog.dart';
 
 /// Profile completion: ask only what is still missing (design doc 0003).
@@ -12,7 +13,7 @@ extension MissingData on FormCatalog {
   /// form with [onlyMissing].
   ///
   /// A field is missing when its value in [data] (JSON, as the engine's
-  /// `initialValues`) fails the field's own rules:
+  /// `initialValues`, nested or flat) fails the field's own rules:
   /// - required and empty, or a value its codec cannot decode: missing;
   /// - filled but invalid, such as a malformed e-mail: missing;
   /// - optional and empty, or disabled, whatever its value: not missing.
@@ -44,7 +45,7 @@ extension MissingData on FormCatalog {
 /// One [MissingData] computation over a catalog and its data.
 final class _MissingData {
   _MissingData(this.catalog, Map<String, Object?> data)
-      : data = {for (final e in data.entries) FieldPath(e.key): e.value} {
+      : data = flattenJson(data) {
     for (final def in catalog.fields) {
       byPath[def.path] = def;
       final (value, ok) = decodeFieldValue(def, this.data[def.path]);

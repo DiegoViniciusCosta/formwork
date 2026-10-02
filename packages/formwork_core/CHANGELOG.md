@@ -1,5 +1,15 @@
 ## Unreleased
 
+- Groups (design doc 0009 §1 and §2): a dotted key (`address.zipCode`)
+  is a field inside a group, and a catalog `group` entry expands into
+  such fields. `payload()` and `submit` nest groups as JSON objects;
+  `initialValues` and `missingKeys` accept the same nested shape, a flat
+  key winning over a nested one. Registering throws an `ArgumentError`
+  when a key is both a field and a group, or when a rule reads a group
+  (decision 29 of 0001); the catalog reports these as
+  `CatalogIssueKind.readsGroup` and `ruleOnGroup`, or rejects the
+  catalog. Until lists ship, a key that addresses a list item
+  (`dependents[0].name`) throws too.
 - Sending, as design doc 0008 §2 describes: `startSubmitting`,
   `completeSubmit` with `ServerErrors` (`isEmpty` when it carries no
   error), and `abandonSubmit`. Server errors apply with `source: server`

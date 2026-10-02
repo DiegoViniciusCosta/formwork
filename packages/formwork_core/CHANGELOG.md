@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Sending, as design doc 0008 §2 describes: `startSubmitting`,
+  `completeSubmit` with `ServerErrors` (`isEmpty` when it carries no
+  error), and `abandonSubmit`. Server errors apply with `source: server`
+  until their field changes or unregisters. They are discarded for a
+  field changed or registered during the send, and for a path no field
+  registers. A local error wins over the server's. The form error goes
+  to `status.formError`. `snapshot.firstErrorPath` names the first field,
+  in registration order, that shows an error.
 - **Breaking:** the foundation engine replaces the 0.1 one. `FormEngine`
   is `const` and holds nothing; fields register into the snapshot
   (`registerAll`, `register`, `unregister`), and `FormSnapshot` exposes

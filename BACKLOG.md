@@ -29,6 +29,11 @@ Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
 - 0006 §1 a §4 e §6: classes, codecs, `FieldView` (com `builder:` e
   `wrap:`), `FormScope`, `SnapshotFieldView` e as verificações de debug;
 - 0008 §1: `FormStatus` e `submit`;
+- 0008, o resto (2026-10-02, decisão 27 no 0001): `startSubmitting`,
+  `completeSubmit`, `abandonSubmit`, `ServerErrors`, `submitTo`,
+  `FormStatusBuilder`, `focusNode` no `FieldProps` e `FormFocus`. Erros
+  do servidor para caminhos sem campo são descartados (emendas no 0007 e
+  no 0008);
 - teste de "trabalho por mudança".
 
 Falta:
@@ -37,9 +42,6 @@ Falta:
   dentro dele (`address.zipCode`); os docs não dizem.
 - **0006 §5:** o layout vindo do servidor (seções e linhas) e o
   `LayoutRegistry`.
-- **0008, o resto:** `startSubmitting`, `completeSubmit`, `abandonSubmit`,
-  `ServerErrors`, `submitTo`, `FormStatusBuilder`, `focusNode` no
-  `FieldProps` e `FormFocus`.
 
 ### 5. ✅ Aplicar os nomes do 0004 na mesma versão
 Feito junto com o item 4, inclusive os builders do `formwork_material` e
@@ -86,7 +88,11 @@ próprio, que decida:
 - quem é dono de cada registro quando o mesmo campo está montado duas
   vezes;
 - como registrar com Bloc ou Riverpod (`SnapshotFieldView`);
-- como os widgets convivem com o `onlyMissing`.
+- como os widgets convivem com o `onlyMissing`;
+- se erros do servidor para campos ainda não registrados voltam a ser
+  guardados até o campo registrar. Saíram da fundação em 2026-10-02
+  (emendas no 0007 §6 e no 0008 §2): hoje são descartados, e o app trata
+  chaves desconhecidas no `send`. Voltar com eles não quebra ninguém.
 
 É também essa porta que torna a lista `fields` opcional em formulários
 escritos em código.
@@ -100,6 +106,13 @@ deixa de precisar escrever JSON.
 - O custo a pesar na hora: todo tipo de campo customizado passa a precisar
   saber se converter para JSON.
 - Precisa de um design doc próprio antes de começar.
+
+### Aviso para `completeSubmit` sem envio em andamento
+Quem usa o engine direto (Bloc, Riverpod) e chama `completeSubmit` ou
+`abandonSubmit` sem `startSubmitting` antes compara as mudanças com a
+marca de um envio antigo, e pode descartar erros válidos sem aviso. Um
+assert de debug resolveria. O `submitTo` nunca erra esse ciclo. Ficou fora
+da fundação em 2026-10-02 (escopo congelado).
 
 ### `touched` ao perder o foco
 Um modo de validação em que os erros aparecem quando o campo perde o foco,

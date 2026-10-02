@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart' hide isIn, matches;
 import 'package:formwork/formwork.dart';
@@ -224,6 +226,144 @@ void main() {
     probe.builds.clear();
     await tester.pumpWidget(app(other));
     expect(probe.builds, {'a': 1, 'b': 1});
+  });
+
+  testWidgets('a send rebuilds only the fields the server answered for',
+      (tester) async {
+    final probe = probeRegistry();
+    final controller = await pumpForm(
+      tester,
+      [for (var i = 0; i < 10; i++) Probe('f$i', initialValue: 'ok')],
+      probe.registry,
+    );
+    probe.builds.clear();
+
+    final answer = Completer<ServerErrors?>();
+    final sending = controller.submitTo((_) => answer.future);
+    await tester.pump();
+    expect(probe.builds, isEmpty); // starting to send rebuilds no field
+
+    answer.complete(
+        ServerErrors(fields: {FieldPath('f4'): ValidationError('taken')}));
+    await sending;
+    await tester.pump();
+    expect(probe.builds, {'f4': 1});
+  });
+
+  group('focus and status (0008)', () {
+    /// Like [probeRegistry], with each field's node on a [Focus].
+    ({
+      FieldRegistry registry,
+      Map<String, int> builds,
+      Map<String, FocusNode> nodes
+    }) focusRegistry() {
+      final builds = <String, int>{};
+      final nodes = <String, FocusNode>{};
+      final registry = FieldRegistry()
+        ..register('probe', (context, field) {
+          final key = field.def.path.toString();
+          builds.update(key, (n) => n + 1, ifAbsent: () => 1);
+          nodes[key] = field.focusNode;
+          return Focus(
+              focusNode: field.focusNode, child: const SizedBox(height: 1));
+        });
+      return (registry: registry, builds: builds, nodes: nodes);
+    }
+
+    testWidgets('registering focus nodes rebuilds nothing', (tester) async {
+      final focus = focusRegistry();
+      final shown = Probe('shown', visibleWhen: eq('a', 'on'));
+      final controller = await pumpForm(
+          tester, [Probe('a'), Probe('b'), shown], focus.registry);
+      expect(focus.builds, {'a': 1, 'b': 1}); // one build each, on mount
+      await tester.pump();
+      expect(focus.builds, {'a': 1, 'b': 1});
+
+      controller.change(FieldPath('a'), 'on'); // shown mounts and registers
+      await tester.pump();
+      await tester.pump();
+      expect(focus.builds, {'a': 2, 'b': 1, 'shown': 1});
+    });
+
+    testWidgets('moving focus between fields rebuilds no field',
+        (tester) async {
+      final focus = focusRegistry();
+      await pumpForm(tester, [Probe('a'), Probe('b')], focus.registry);
+      focus.builds.clear();
+      focus.nodes['a']!.requestFocus();
+      await tester.pump();
+      focus.nodes['b']!.requestFocus();
+      await tester.pump();
+      expect(focus.nodes['b']!.hasFocus, isTrue);
+      expect(focus.builds, isEmpty);
+    });
+
+    testWidgets('typing in a valid field does not rebuild a FormStatusBuilder',
+        (tester) async {
+      final controller =
+          FormController(FormDef([Probe('a', initialValue: 'ok')]));
+      var builds = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: FormStatusBuilder<FormStatus>(
+          controller: controller,
+          select: (s) => s,
+          builder: (context, status) {
+            builds++;
+            return const SizedBox();
+          },
+        ),
+      ));
+      controller.change(FieldPath('a'), 'ok1'); // the form becomes dirty
+      await tester.pump();
+      builds = 0;
+
+      controller
+        ..change(FieldPath('a'), 'ok12')
+        ..change(FieldPath('a'), 'ok123');
+      await tester.pump();
+      expect(builds, 0);
+    });
+
+    testWidgets(
+        'a FormStatusBuilder rebuilds only when the selected part changes',
+        (tester) async {
+      final controller =
+          FormController(FormDef([Probe('a', required: true), Probe('b')]));
+      var submittingBuilds = 0;
+      var validityBuilds = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: Column(children: [
+          FormStatusBuilder<bool>(
+            controller: controller,
+            select: (s) => s.submitting,
+            builder: (context, submitting) {
+              submittingBuilds++;
+              return Text('submitting $submitting');
+            },
+          ),
+          FormStatusBuilder<(bool, int)>(
+            controller: controller,
+            select: (s) => (s.submitAttempted, s.errorCount),
+            builder: (context, v) {
+              validityBuilds++;
+              return Text('errors ${v.$2}');
+            },
+          ),
+        ]),
+      ));
+      submittingBuilds = 0;
+      validityBuilds = 0;
+
+      controller.change(FieldPath('a'), 'x'); // dirty and errorCount move
+      await tester.pump();
+      expect(submittingBuilds, 0);
+      expect(validityBuilds, 1);
+
+      controller.change(FieldPath('a'), 'xy'); // nothing selected moves
+      await tester.pump();
+      expect(validityBuilds, 1);
+      expect(find.text('errors 0'), findsOneWidget);
+    });
   });
 
   group('FieldView in a custom layout', () {

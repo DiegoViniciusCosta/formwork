@@ -39,6 +39,7 @@ Widget _text(
       onChanged: field.onChanged,
       builder: (_, controller, onTextChanged) => TextField(
         controller: controller,
+        focusNode: field.focusNode,
         enabled: field.enabled,
         decoration: InputDecoration(
           labelText: field.def.label,
@@ -58,6 +59,7 @@ Widget _dropdown(BuildContext _, FieldProps<Object?> field) {
       def is ChoiceFieldDef<Object?> ? def.options : const <Option<Object?>>[];
   return DropdownButtonFormField<Object?>(
     initialValue: field.value,
+    focusNode: field.focusNode,
     decoration: InputDecoration(
       labelText: def.label,
       hintText: def.hint,
@@ -76,6 +78,7 @@ Widget _checkbox(BuildContext context, FieldProps<Object?> field) => Column(
       children: [
         CheckboxListTile(
           value: field.value == true,
+          focusNode: field.focusNode,
           title: Text(field.def.label ?? ''),
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,

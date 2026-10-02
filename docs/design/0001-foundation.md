@@ -395,3 +395,12 @@ the parts of 0008 it needs), step 5:
       references it carries.
     - Debug reports use `FlutterError.reportError`, so they reach
       `FlutterError.onError` and never throw.
+27. **Server errors, details of 0008 §2 and 0007 §6 as amended on
+    2026-10-02:** an error for a path no field registers is discarded,
+    and a field that unregisters drops its server error. On a field, a
+    local error wins over the server's, since it describes the value on
+    screen now. Replacing a field's definition (hot reload, a new
+    catalog) keeps its server error and does not count as a change: the
+    value is the same, and the new validators' local error still wins.
+28. **`FormScopeData` carries a fifth reference,** `focus` (0008 §4),
+    next to the four of decision 26.

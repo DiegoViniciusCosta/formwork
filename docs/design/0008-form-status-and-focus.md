@@ -1,6 +1,7 @@
 # 0008: Form status in the UI, and focus
 
-Status: **accepted** (2026-09-25)
+Status: **accepted** (2026-09-25), amended 2026-10-02 (server errors
+for unregistered paths are discarded; see §2)
 
 ## Problem
 
@@ -157,10 +158,13 @@ final class ServerErrors {          // formwork_core
         refers to a value that is gone, so it is discarded. This is
         principle 3's race-free rule applied to the server; none of the
         competitors does it.
-      - A path that is not registered keeps its error until it registers
-        (0007 §6).
+      - An error for a path that no field registers is discarded
+        (amended 2026-10-02). The app turns the server's answer into
+        `ServerErrors` inside `send`, so it knows which keys are fields:
+        it can map an unknown one to the form error, or handle it some
+        other way.
       - A field error clears the next time its field changes, like any
-        other error.
+        other error, or when its field unregisters.
     - **The form error** goes to `status.formError`. It does not block
       the next submit: there is no field to fix, and blocking would be a
       dead end. It clears on the next `startSubmitting`.
@@ -385,6 +389,8 @@ is not breaking beyond what that release already breaks.
   - `completeSubmit` with no errors gives `accepted`; with field or form
     errors, `rejected`, and applies them;
   - a server error for a field changed during the submit is discarded;
+  - a server error for an unregistered path is discarded, and one held
+    by a field that unregisters is gone when it registers again;
   - the form error neither counts in `errorCount` nor blocks the next
     submit, and clears on the next `startSubmitting`;
   - `abandonSubmit` gives `abandoned` and applies nothing;
@@ -418,3 +424,7 @@ is not breaking beyond what that release already breaks.
    `FormStatus`.** The list on the snapshot is enough, and the status
    stays small. An app that wants to mention them in a banner reads that
    list.
+   *Amended 2026-10-02:* there is no such list. Those errors are
+   discarded (§2), so the question no longer arises. Keeping them can
+   come back, without breaking anyone, with the widget-first forms,
+   where fields register and unregister as widgets mount.

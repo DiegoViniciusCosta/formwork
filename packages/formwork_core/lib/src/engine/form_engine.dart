@@ -7,6 +7,8 @@ import 'field_path.dart';
 import 'field_state.dart';
 import 'form_status.dart';
 import 'persistent_map.dart';
+import 'server_errors.dart';
+import 'validation_error.dart';
 
 /// The state of a form at one moment: every registered field's
 /// [FieldState], plus what the engine needs to apply the next change
@@ -30,6 +32,8 @@ final class FormSnapshot {
     required this.status,
     required PersistentMap<FieldPath, bool> errored,
     required int dirtyCount,
+    required int clock,
+    required int submitStartedAt,
     required _VisibleList visible,
   })  : _entries = entries,
         _order = order,
@@ -40,6 +44,8 @@ final class FormSnapshot {
         _graph = graph,
         _errored = errored,
         _dirtyCount = dirtyCount,
+        _clock = clock,
+        _submitStartedAt = submitStartedAt,
         _visible = visible;
 
   /// Registered fields.
@@ -67,6 +73,13 @@ final class FormSnapshot {
 
   /// How many fields differ from their initial value.
   final int _dirtyCount;
+
+  /// Counts registrations and the user's changes to fields, to tell which
+  /// ones changed during a submit.
+  final int _clock;
+
+  /// [_clock] when the current or last send started.
+  final int _submitStartedAt;
 
   final _VisibleList _visible;
 
@@ -106,6 +119,19 @@ final class FormSnapshot {
   /// entry leaves when its field gets a new value or is unregistered.
   Map<FieldPath, Object?> get undecodable =>
       Map.unmodifiable(Map.fromEntries(_undecodable.entries));
+
+  /// The first field, in registration order, that shows an error: where a
+  /// failed submit moves focus (design doc 0008 §4). `null` when none does.
+  /// Costs the number of fields with an error, not the size of the form.
+  FieldPath? get firstErrorPath {
+    _Entry? first;
+    for (final MapEntry(key: path) in _errored.entries) {
+      final entry = _entries[path]!;
+      final shown = entry.state.touched || status.submitAttempted;
+      if (shown && (first == null || entry.seq < first.seq)) first = entry;
+    }
+    return first?.state.def.path;
+  }
 
   Iterable<FieldState> _activeStates() sync* {
     for (var seq = 0; seq < _nextSeq; seq++) {
@@ -148,6 +174,8 @@ final class FormEngine {
         status: const FormStatus(),
         errored: const PersistentMap.empty(),
         dirtyCount: 0,
+        clock: 0,
+        submitStartedAt: 0,
         visible: _VisibleList(),
       );
 
@@ -224,16 +252,57 @@ final class FormEngine {
       payload: next.status.isValid ? next.payload() : null,
     );
   }
+
+  /// Marks a send as started, after [submit] returned a payload (design
+  /// doc 0008 §2): `status.submitting` becomes true, and the form error
+  /// and outcome of the previous send are cleared.
+  FormSnapshot startSubmitting(FormSnapshot s) =>
+      (_Transition(s)..startSubmitting()).finish();
+
+  /// Records the server's [answer] and ends the send.
+  ///
+  /// `null` or an empty answer is `accepted`. Otherwise it is `rejected`,
+  /// and the errors apply with `source: server`: the form error to
+  /// `status.formError`, each field error to its field until the field
+  /// changes or unregisters. An error for a field the user changed, or
+  /// that registered, since [startSubmitting] may describe another value,
+  /// and is discarded. So is an error for a path no field registers: the
+  /// app handles unknown keys when it builds the answer.
+  FormSnapshot completeSubmit(FormSnapshot s, ServerErrors? answer) =>
+      (_Transition(s)..completeSubmit(answer)).finish();
+
+  /// Ends a send that got no answer, such as a network error, a timeout
+  /// or a cancel: `status.lastSubmit` becomes `abandoned`, and nothing is
+  /// applied.
+  FormSnapshot abandonSubmit(FormSnapshot s) =>
+      (_Transition(s)..abandonSubmit()).finish();
 }
 
 /// A registered field: its state, registration order and the value it had
 /// when it registered, which `dirty` compares with.
 final class _Entry {
-  const _Entry(this.state, this.seq, this.initial);
+  const _Entry(
+    this.state,
+    this.seq,
+    this.initial, {
+    this.serverError,
+    this.changedAt = 0,
+  });
 
   final FieldState state;
   final int seq;
   final Object? initial;
+
+  /// The server's error for this field, until the field changes (design
+  /// doc 0008 §2).
+  final ValidationError? serverError;
+
+  /// The snapshot clock when the field registered or the user last
+  /// changed it.
+  final int changedAt;
+
+  _Entry withState(FieldState state) => _Entry(state, seq, initial,
+      serverError: serverError, changedAt: changedAt);
 }
 
 /// What an unregistered field leaves behind, for when it comes back.
@@ -276,7 +345,12 @@ final class _Transition {
         graph = from._graph,
         errored = from._errored,
         dirtyCount = from._dirtyCount,
-        submitCount = from.status.submitCount;
+        clock = from._clock,
+        submitStartedAt = from._submitStartedAt,
+        submitCount = from.status.submitCount,
+        formError = from.status.formError,
+        submitting = from.status.submitting,
+        lastSubmit = from.status.lastSubmit;
 
   final FormSnapshot from;
   PersistentMap<FieldPath, _Entry> entries;
@@ -288,7 +362,12 @@ final class _Transition {
   DependencyGraph graph;
   PersistentMap<FieldPath, bool> errored;
   int dirtyCount;
+  int clock;
+  int submitStartedAt;
   int submitCount;
+  ValidationError? formError;
+  bool submitting;
+  SubmitOutcome? lastSubmit;
 
   final changed = <FieldPath>{};
   bool activeSetChanged = false;
@@ -327,6 +406,8 @@ final class _Transition {
           ),
           old.seq,
           initial,
+          serverError: old.serverError,
+          changedAt: old.changedAt,
         ),
         old.state,
       );
@@ -359,7 +440,9 @@ final class _Transition {
       dirty: !deepEquals(value, initial),
       generation: (gone?.generation ?? 0) + 1,
     );
-    _put(path, _Entry(state, seq, initial), null);
+    // Registering counts as a change: an answer to a send that started
+    // before it may describe another value (design doc 0008 §2).
+    _put(path, _Entry(state, seq, initial, changedAt: ++clock), null);
     _enqueue(path);
     _enqueueReaders(path);
   }
@@ -426,6 +509,7 @@ final class _Transition {
         ),
         old.seq,
         old.initial,
+        changedAt: ++clock,
       ),
       state,
     );
@@ -440,9 +524,43 @@ final class _Transition {
     // those fields' views, and nobody else.
     for (final MapEntry(key: path) in errored.entries) {
       final entry = entries[path]!;
-      _put(path, _Entry(entry.state.copyWith(), entry.seq, entry.initial),
-          entry.state);
+      _put(path, entry.withState(entry.state.copyWith()), entry.state);
     }
+  }
+
+  void startSubmitting() {
+    submitting = true;
+    submitStartedAt = clock;
+    formError = null;
+    lastSubmit = null;
+  }
+
+  void completeSubmit(ServerErrors? answer) {
+    submitting = false;
+    if (answer == null || answer.isEmpty) {
+      lastSubmit = SubmitOutcome.accepted;
+      return;
+    }
+    lastSubmit = SubmitOutcome.rejected;
+    formError = answer.form?.asServer();
+    for (final MapEntry(key: path, value: error) in answer.fields.entries) {
+      final entry = entries[path];
+      // No field to show it: the app handles unknown keys in its sender.
+      if (entry == null) continue;
+      if (entry.changedAt <= submitStartedAt) {
+        entries = entries.put(
+          path,
+          _Entry(entry.state, entry.seq, entry.initial,
+              serverError: error.asServer(), changedAt: entry.changedAt),
+        );
+        _enqueue(path);
+      }
+    }
+  }
+
+  void abandonSubmit() {
+    submitting = false;
+    lastSubmit = SubmitOutcome.abandoned;
   }
 
   FormSnapshot finish() {
@@ -467,6 +585,8 @@ final class _Transition {
       status: status,
       errored: errored,
       dirtyCount: dirtyCount,
+      clock: clock,
+      submitStartedAt: submitStartedAt,
       visible: activeSetChanged ? _VisibleList() : from._visible,
     );
   }
@@ -487,9 +607,11 @@ final class _Transition {
       final enabled = def.enabledWhen?.evaluate(_valueAt) ?? true;
       final required =
           def.required || (def.requiredWhen?.evaluate(_valueAt) ?? false);
+      // A local error wins: it describes the value on screen now.
       final error = visible && enabled
           ? validateField(def, state.value,
-              required: required, valueOf: _valueAt)
+                  required: required, valueOf: _valueAt) ??
+              entry.serverError
           : null;
 
       if (visible == state.visible &&
@@ -505,7 +627,7 @@ final class _Transition {
         error: error,
         clearError: error == null,
       );
-      _put(path, _Entry(next, entry.seq, entry.initial), state);
+      _put(path, entry.withState(next), state);
       if (visible != state.visible) {
         for (final reader in graph.conditionDependents(path)) {
           _enqueue(reader);
@@ -578,10 +700,10 @@ final class _Transition {
     final old = from.status;
     final next = FormStatus(
       errorCount: errored.length,
-      formError: old.formError,
+      formError: formError,
       submitCount: submitCount,
-      submitting: old.submitting,
-      lastSubmit: old.lastSubmit,
+      submitting: submitting,
+      lastSubmit: lastSubmit,
       validating: old.validating,
       dirty: dirtyCount > 0,
     );
@@ -618,4 +740,11 @@ final class _Transition {
       _enqueue(reader);
     }
   }
+}
+
+extension on ValidationError {
+  /// This error, marked as the server's.
+  ValidationError asServer() => source == ErrorSource.server
+      ? this
+      : ValidationError(code, params: params, source: ErrorSource.server);
 }

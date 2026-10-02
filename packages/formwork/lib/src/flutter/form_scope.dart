@@ -4,9 +4,10 @@ import 'package:formwork_core/formwork_core.dart';
 import 'field_registry.dart';
 import 'field_view.dart';
 import 'form_controller.dart';
+import 'form_focus.dart';
 
-/// Gives the field views below it their controller, registry, localizer
-/// and view-level `enabled` flag (design doc 0006 §4).
+/// Gives the field views below it their controller, registry, localizer,
+/// focus and view-level `enabled` flag (design docs 0006 §4 and 0008 §4).
 ///
 /// A convenience only: every [FieldView] also takes these explicitly. It
 /// carries stable references, never the snapshot, so a change to the form
@@ -24,6 +25,7 @@ class FormScope extends StatefulWidget {
     this.registry,
     this.localizer = englishErrorLocalizer,
     this.enabled = true,
+    this.focus,
     required this.child,
   });
 
@@ -39,6 +41,10 @@ class FormScope extends StatefulWidget {
   /// Whether the fields below accept input, for example `false` while
   /// submitting.
   final bool enabled;
+
+  /// Where the fields below register their focus; the controller's when
+  /// omitted.
+  final FormFocus? focus;
 
   /// The widgets below.
   final Widget child;
@@ -61,6 +67,7 @@ final class FormScopeData {
     required this.registry,
     required this.localizer,
     required this.enabled,
+    required this.focus,
   });
 
   /// See [FormScope.controller].
@@ -75,17 +82,21 @@ final class FormScopeData {
   /// See [FormScope.enabled].
   final bool enabled;
 
+  /// See [FormScope.focus]; the controller's when the scope had none.
+  final FormFocus? focus;
+
   @override
   bool operator ==(Object other) =>
       other is FormScopeData &&
       identical(other.controller, controller) &&
       identical(other.registry, registry) &&
       other.localizer == localizer &&
-      other.enabled == enabled;
+      other.enabled == enabled &&
+      identical(other.focus, focus);
 
   @override
   int get hashCode => Object.hash(identityHashCode(controller),
-      identityHashCode(registry), localizer, enabled);
+      identityHashCode(registry), localizer, enabled, identityHashCode(focus));
 }
 
 class _FormScopeState extends State<FormScope> {
@@ -110,6 +121,7 @@ class _FormScopeState extends State<FormScope> {
           registry: widget.registry,
           localizer: widget.localizer,
           enabled: widget.enabled,
+          focus: widget.focus ?? widget.controller?.focus,
         ),
         child: widget.child,
       );

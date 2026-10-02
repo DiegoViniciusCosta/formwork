@@ -22,4 +22,5 @@ export 'src/engine/field_state.dart' show FieldState;
 export 'src/engine/form_def.dart';
 export 'src/engine/form_engine.dart';
 export 'src/engine/form_status.dart';
+export 'src/engine/server_errors.dart';
 export 'src/engine/validation_error.dart';

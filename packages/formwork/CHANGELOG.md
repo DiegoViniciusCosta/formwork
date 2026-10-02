@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Sending and focus (design doc 0008): `controller.submitTo(send)`, where
+  `send` is a `FormSender`, submits, sends a valid payload, records the
+  server's answer, and moves focus to the first field with an error,
+  scrolling to it. `FormStatusBuilder` rebuilds only when the part of the
+  status it selects changes. `FieldProps.focusNode` is the field's node,
+  owned by its view; `FormFocus`, which a `FormController` exposes as
+  `focus`, moves focus for Bloc and Riverpod screens too, through
+  `FormScope(focus:)` or `SnapshotFormView(focus:)`.
 - **Breaking:** the widgets follow the foundation (design docs 0001,
   0004, 0006 §4 and §6, and 0007):
   - `FormController(form, initialValues:)` replaces

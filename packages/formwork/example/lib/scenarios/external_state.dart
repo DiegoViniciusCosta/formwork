@@ -88,10 +88,19 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
             current.value, (s, e) => engine.change(s, FieldPath(e.$1), e.$2)),
       );
 
+  /// Where the fields register their focus: this screen owns it, as a
+  /// Bloc or Riverpod screen would.
+  final focus = FormFocus();
+
   void submit() {
     final result = engine.submit(current.value);
     push(result.snapshot);
-    if (result.payload case final payload?) showPayload(context, payload);
+    if (result.payload case final payload?) {
+      showPayload(context, payload);
+    } else {
+      // In a Bloc app: a BlocListener seeing submitCount grow.
+      focus.requestFirstError(result.snapshot);
+    }
   }
 
   @override
@@ -135,6 +144,7 @@ class _ExternalStateScenarioState extends State<ExternalStateScenario> {
           onChanged: (path, value) =>
               push(engine.change(current.value, path, value)),
           registry: registry,
+          focus: focus,
         ),
         bottomBar: FilledButton(
           onPressed: current.value.status.submitAttempted &&

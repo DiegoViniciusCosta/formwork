@@ -1,6 +1,7 @@
 # 0007: Architecture: one engine, several front doors
 
-Status: **accepted** (2026-09-25)
+Status: **accepted** (2026-09-25), amended 2026-10-02 (server errors
+for unregistered paths are discarded; see §6)
 
 ## Problem
 
@@ -203,10 +204,11 @@ map, shared across snapshots, as 0002 decided.
   a counter in `FieldState` that moves on register and replace. A result
   for an older generation, or for an unregistered field, is discarded as
   stale. This is principle 3's race-free rule.
-- **Server errors** for a path that is not registered are kept, and
-  applied when the field registers. The snapshot lists them, so an app
-  can show errors for fields that are not on screen. They do not
-  block submit (see "Decided with acceptance").
+- **Server errors** for a path that is not registered are discarded,
+  and so is one held by a field that unregisters (amended 2026-10-02,
+  see 0008 §2). The app reads the server's answer before the engine
+  does, so it can handle an unknown key itself, for example as the form
+  error.
 
 ### 7. `FieldView` in this release: a per-field `builder:`
 
@@ -320,8 +322,7 @@ The engine API above is what that doc will build on.
 - **Cycles:** a `CycleError` on the code path; skip and report on the
   catalog path.
 - **Async:** a result for an old generation is discarded.
-- **Server errors:** an error for an unregistered path is applied when the
-  path registers.
+- **Server errors:** an error for an unregistered path is discarded.
 - **Rebuilds:** registering or replacing one field rebuilds no other
   field. Form-level listeners are counted separately: they rebuild once
   per registration batch.
@@ -347,6 +348,8 @@ The engine API above is what that doc will build on.
    would be a dead end, and the server rejects the payload again anyway.
    The snapshot keeps listing them, so an app that wants to block can do
    it in its own submit handler.
+   *Amended 2026-10-02:* the engine discards them instead (§6), so
+   nothing is shown or listed; the app decides in `send`.
 2. **The two rule changes of §1** (the title of principle 1, and
    dependencies between formwork's own packages) are approved. They land
    in PRINCIPLES.md, AGENTS.md and the tooling with the package split,

@@ -4,6 +4,7 @@ import 'package:formwork_core/formwork_core.dart';
 import 'field_props.dart';
 import 'field_registry.dart';
 import 'form_controller.dart';
+import 'form_focus.dart';
 import 'form_scope.dart';
 
 /// Builds a field's surroundings around [field], such as a `Card` or an
@@ -17,7 +18,7 @@ typedef FieldWrapper = Widget Function(BuildContext context, Widget field);
 /// of the form. A hidden field renders nothing, [wrap] included.
 ///
 /// Every input can be passed here, or taken from the nearest [FormScope]:
-/// [controller], [registry], [localizer] and [enabled].
+/// [controller], [registry], [localizer], [enabled] and [focus].
 class FieldView extends StatefulWidget {
   /// The view of [def]'s field.
   const FieldView(
@@ -27,12 +28,17 @@ class FieldView extends StatefulWidget {
     this.registry,
     this.localizer,
     this.enabled,
+    this.focus,
     this.builder,
     this.wrap,
   });
 
   /// The field to render.
   final FieldDef<Object?> def;
+
+  /// Where the field registers its focus node; from the [FormScope], or
+  /// the controller's, when omitted.
+  final FormFocus? focus;
 
   /// The form's controller; from the [FormScope] when omitted.
   final FormController? controller;
@@ -139,6 +145,7 @@ class _FieldViewState extends State<FieldView> {
           registry: registry,
           localizer: widget.localizer ?? scope?.localizer,
           enabled: widget.enabled ?? scope?.enabled ?? true,
+          focus: widget.focus ?? scope?.focus ?? controller.focus,
           builder: widget.builder,
           wrap: widget.wrap,
         );
@@ -166,12 +173,17 @@ class SnapshotFieldView extends StatefulWidget {
     this.registry,
     this.localizer,
     this.enabled = true,
+    this.focus,
     this.builder,
     this.wrap,
   });
 
   /// The field to render.
   final FieldDef<Object?> def;
+
+  /// Where the field registers its focus node, for
+  /// [FormFocus.requestFirstError].
+  final FormFocus? focus;
 
   /// Its state in the current snapshot.
   final FieldState state;
@@ -205,6 +217,42 @@ class SnapshotFieldView extends StatefulWidget {
 class _SnapshotFieldViewState extends State<SnapshotFieldView> {
   SnapshotFieldView? _builtFor;
   Widget? _built;
+
+  /// Owned here, the same node for as long as the field is mounted, so it
+  /// never invalidates the cached field (design doc 0008 §4).
+  late final FocusNode _focusNode =
+      FocusNode(debugLabel: widget.def.path.toString());
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focus case final focus?) {
+      registerFieldFocus(focus, widget.def.path, _focusNode, context);
+    }
+  }
+
+  @override
+  void didUpdateWidget(SnapshotFieldView old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.focus, widget.focus) ||
+        old.def.path != widget.def.path) {
+      if (old.focus case final focus?) {
+        unregisterFieldFocus(focus, old.def.path, _focusNode);
+      }
+      if (widget.focus case final focus?) {
+        registerFieldFocus(focus, widget.def.path, _focusNode, context);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.focus case final focus?) {
+      unregisterFieldFocus(focus, widget.def.path, _focusNode);
+    }
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   // A tear-off of this State is stable, and reaches the latest callback.
   void _onChanged(Object? value) => widget.onChanged(value);
@@ -244,6 +292,7 @@ class _SnapshotFieldViewState extends State<SnapshotFieldView> {
       required: state.required,
       validating: state.validating,
       onChanged: _onChanged,
+      focusNode: _focusNode,
     );
     final wrap = widget.wrap;
     // A Builder gives the field its own BuildContext, so an inherited

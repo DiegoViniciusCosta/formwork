@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Every builder passes the field's `focusNode`, so a failed submit can
+  focus it.
 - **Breaking:** builders take `FieldProps` (formwork's new builder
   contract): `materialFieldBuilders` values are `(context, props)`. The
   dropdown reads its options from the field's `ChoiceFieldDef`.

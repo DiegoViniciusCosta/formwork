@@ -434,6 +434,93 @@ void main() {
     }
   });
 
+  test('with server answers, incremental equals scratch plus the answers', () {
+    // Server errors are outside "computing from scratch": they are input.
+    // This model says which ones hold: an answer applies to a registered
+    // field not changed or registered since its send started; a change or
+    // unregistering removes it.
+    final random = Random(13);
+    for (var round = 0; round < 150; round++) {
+      final defs = _randomForm(random);
+      final values = _randomValues(random);
+      var s = form(defs, values);
+      final known = {...values};
+      final server = <String, ValidationError>{};
+      final changedAt = <String, int>{};
+      var clock = 0;
+      int? sentAt;
+      for (var step = 0; step < 30; step++) {
+        final before = s;
+        final churn =
+            random.nextInt(4) == 0 ? defs[random.nextInt(defs.length)] : null;
+        if (churn != null) {
+          s = engine.unregister(s, churn.path);
+          server.remove(churn.path.toString());
+        }
+
+        if (sentAt == null && random.nextInt(4) == 0) {
+          s = engine.startSubmitting(s);
+          sentAt = clock;
+        }
+
+        final path = 'f${random.nextInt(defs.length + 2)}';
+        final def = defs.where((d) => d.path == p(path)).firstOrNull;
+        final current = def == null ? known[path] : before.stateOf(def)!.value;
+        Object? value;
+        do {
+          value = _randomValue(random);
+        } while (value == current); // always a real change
+        s = engine.change(s, p(path), value);
+        known[path] = value;
+        changedAt[path] = ++clock;
+        server.remove(path);
+
+        if (sentAt != null && random.nextInt(3) == 0) {
+          final answer = {
+            for (var i = 0; i < defs.length + 2; i++)
+              if (random.nextInt(3) == 0)
+                'f$i': ValidationError('taken$i', source: ErrorSource.server),
+          };
+          s = engine.completeSubmit(
+              s,
+              ServerErrors(fields: {
+                for (final MapEntry(:key, :value) in answer.entries)
+                  p(key): value,
+              }));
+          for (final MapEntry(:key, :value) in answer.entries) {
+            final registered = defs.any((d) => d.path == p(key)) &&
+                (churn == null || churn.path != p(key));
+            if (registered && (changedAt[key] ?? 0) <= sentAt) {
+              server[key] = value;
+            }
+          }
+          sentAt = null;
+        }
+
+        if (churn != null) {
+          s = engine.register(s, churn);
+          changedAt[churn.path.toString()] = ++clock; // registering counts
+        }
+
+        final scratch = form(defs, {
+          ...known,
+          for (final def in defs) def.path.toString(): s.stateOf(def)!.value,
+        });
+        var errors = 0;
+        for (final def in defs) {
+          final local = scratch.stateOf(def)!;
+          // A local error wins over the server's.
+          final expected = local.visible && local.enabled
+              ? local.error ?? server[def.path.toString()]
+              : null;
+          expect(s.stateOf(def)!.error, expected, reason: '$def error');
+          if (expected != null) errors++;
+        }
+        expect(s.status.errorCount, errors);
+      }
+    }
+  });
+
   test('work per change does not grow with the form (PRINCIPLES.md §2)', () {
     int workFor(int size) {
       final counter = _Counter();

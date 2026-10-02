@@ -72,7 +72,22 @@ void main() {
       await t.pump(const Duration(seconds: 2));
       await t.pumpAndSettle();
 
-      expect(find.text('Submitted payload'), findsOneWidget);
+      expect(find.text('Saved'), findsOneWidget);
+    });
+
+    testWidgets('a form error from the server shows under the form', (t) async {
+      await _open(t, const ProfileCompletionScenario());
+      await t.tap(find.text('Complete'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Highlight missing'));
+      await t.pumpAndSettle();
+      await t.enterText(_field('Tax ID'), '00000000000');
+      await t.tap(find.widgetWithText(FilledButton, 'Save'));
+      await t.pump();
+      expect(find.widgetWithText(FilledButton, 'Sending…'), findsOneWidget);
+      await t.pump(const Duration(seconds: 2));
+      await t.pumpAndSettle();
+      expect(find.text('This account is locked: call support'), findsOneWidget);
     });
 
     testWidgets('renewal: answering "yes" shows the known type prefilled',

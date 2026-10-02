@@ -57,6 +57,7 @@ class FieldRegistry {
             required: props.required,
             validating: props.validating,
             onChanged: props.onChanged,
+            focusNode: props.focusNode,
           ),
           def,
         );

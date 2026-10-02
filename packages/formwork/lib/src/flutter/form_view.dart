@@ -4,6 +4,7 @@ import 'package:formwork_core/formwork_core.dart';
 import 'field_registry.dart';
 import 'field_view.dart';
 import 'form_controller.dart';
+import 'form_focus.dart';
 import 'form_scope.dart';
 
 /// Renders every visible field of a [FormController] in a column, in
@@ -120,8 +121,13 @@ class SnapshotFormView extends StatefulWidget {
     required this.registry,
     this.localizer = englishErrorLocalizer,
     this.enabled = true,
+    this.focus,
     this.spacing = 16,
   });
+
+  /// Where the fields register their focus nodes, to move focus to the
+  /// first error with [FormFocus.requestFirstError].
+  final FormFocus? focus;
 
   /// The state to render.
   final FormSnapshot snapshot;
@@ -171,6 +177,7 @@ class _SnapshotFormViewState extends State<SnapshotFormView> {
               registry: widget.registry,
               localizer: widget.localizer,
               enabled: widget.enabled,
+              focus: widget.focus,
             ),
           ),
       ],

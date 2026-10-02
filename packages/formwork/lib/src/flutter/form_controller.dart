@@ -1,6 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:formwork_core/formwork_core.dart';
 
+import 'form_focus.dart';
+
+/// What an app does with a valid payload: sends it, and reports the
+/// server's answer, `null` when it accepted (design doc 0008 §2).
+typedef FormSender = Future<ServerErrors?> Function(
+  Map<String, Object?> payload,
+);
+
 /// Holds a form's snapshot for apps without a state management package,
 /// and tells each field when its own state changes (design docs 0004 and
 /// 0006 §6).
@@ -26,6 +34,12 @@ class FormController extends ChangeNotifier
 
   /// The rules this controller applies.
   final FormEngine engine;
+
+  /// The focus of this form's fields, used by default by the field views
+  /// below a `FormScope` of this controller.
+  final FormFocus focus = FormFocus();
+
+  bool _disposed = false;
 
   FormSnapshot _snapshot;
   late final ValueNotifier<FormStatus> _status;
@@ -63,15 +77,51 @@ class FormController extends ChangeNotifier
       _moveTo(engine.change(_snapshot, path, value));
 
   /// Marks a submit attempt, which shows every error, and returns the
-  /// payload when the form is valid, else `null`.
+  /// payload when the form is valid, else `null`. It sends nothing: see
+  /// [submitTo] to send and record the answer in one call.
   Map<String, Object?>? submit() {
     final (:snapshot, :payload) = engine.submit(_snapshot);
     _moveTo(snapshot);
     return payload;
   }
 
+  /// Submits, and sends a valid payload with [send] (design doc 0008 §2):
+  /// "submit to `api.saveProfile`".
+  ///
+  /// Returns `null` when validation stopped the submit, while a send is
+  /// in progress, or when the controller was disposed before the answer;
+  /// otherwise how the send ended. When validation or the
+  /// server rejects the payload, focus moves to the first field with an
+  /// error, scrolling to it unless [scroll] is false. When [send] throws,
+  /// the send is abandoned and the error rethrown, so the form never stays
+  /// submitting. See [submit] for the attempt alone.
+  Future<SubmitOutcome?> submitTo(FormSender send, {bool scroll = true}) async {
+    if (_snapshot.status.submitting) return null;
+    final payload = submit();
+    if (payload == null) {
+      focus.requestFirstError(_snapshot, scroll: scroll);
+      return null;
+    }
+    _moveTo(engine.startSubmitting(_snapshot));
+    final ServerErrors? answer;
+    try {
+      answer = await send(payload);
+    } catch (_) {
+      if (!_disposed) _moveTo(engine.abandonSubmit(_snapshot));
+      rethrow;
+    }
+    if (_disposed) return null;
+    _moveTo(engine.completeSubmit(_snapshot, answer));
+    final outcome = _snapshot.status.lastSubmit;
+    if (outcome == SubmitOutcome.rejected) {
+      focus.requestFirstError(_snapshot, scroll: scroll);
+    }
+    return outcome;
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     for (final field in _fields.values) {
       field.dispose();
     }

@@ -18,6 +18,7 @@ final class FieldProps<T> {
     required this.required,
     required this.validating,
     required this.onChanged,
+    required this.focusNode,
   });
 
   /// The field's definition: label, hint, options and the rest.
@@ -45,4 +46,9 @@ final class FieldProps<T> {
 
   /// Reports a new value.
   final ValueChanged<T?> onChanged;
+
+  /// The field's focus node, the same while the field is mounted (design
+  /// doc 0008 §4). Pass it to the input, or wrap the component in a
+  /// `Focus` with it, so a failed submit can move focus here.
+  final FocusNode focusNode;
 }

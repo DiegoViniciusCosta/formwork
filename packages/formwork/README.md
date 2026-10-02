@@ -37,10 +37,24 @@ final controller = FormController(
 // In your widget tree:
 FormView(controller: controller, registry: registry);
 
-// In your call to action:
-final payload = controller.submit(); // null when invalid
-if (payload != null) await api.updateProfile(payload);
+// In your call to action: validates, sends, records the server's answer,
+// and focuses the first field with an error.
+final outcome = await controller.submitTo(api.updateProfile);
+
+// A button that follows the send:
+FormStatusBuilder(
+  controller: controller,
+  select: (s) => s.submitting,
+  builder: (context, submitting) => FilledButton(
+    onPressed: submitting ? null : () => controller.submitTo(api.updateProfile),
+    child: Text(submitting ? 'Sending…' : 'Send'),
+  ),
+);
 ```
+
+`api.updateProfile` returns `ServerErrors?`: `null` when the server
+accepted, or errors for fields and for the whole form. `controller.submit()`
+validates without sending.
 
 `initialValues` prefills the form and feeds visibility rules, but only the
 visible fields of the form end up in the payload, which is ready for a

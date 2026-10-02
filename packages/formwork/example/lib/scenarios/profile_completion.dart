@@ -178,9 +178,25 @@ ValidatorRegistry _validators() => ValidatorRegistry()
   ..register('digits', (spec) => _Digits(spec['value']! as int));
 
 String _localizer(ValidationError error, FieldDef<Object?>? field) =>
-    error.code == 'digits'
-        ? 'Must have ${error.params['length']} digits'
-        : englishErrorLocalizer(error, field);
+    switch (error.code) {
+      'digits' => 'Must have ${error.params['length']} digits',
+      'taken' => 'Already used by another account',
+      'accountLocked' => 'This account is locked: call support',
+      _ => englishErrorLocalizer(error, field),
+    };
+
+/// A fake API, to show every way a send can end (design doc 0008 §2).
+Future<ServerErrors?> _fakeSave(Map<String, Object?> payload) async {
+  await Future<void>.delayed(const Duration(seconds: 1));
+  return switch (payload) {
+    {'email': 'taken@example.com'} =>
+      ServerErrors(fields: {FieldPath('email'): ValidationError('taken')}),
+    {'taxId': '00000000000'} =>
+      ServerErrors(form: ValidationError('accountLocked')),
+    {'fullName': 'Offline'} => throw Exception('No connection'),
+    _ => null,
+  };
+}
 
 /// How the form treats what the user already answered (design doc 0003).
 enum _Mode {
@@ -286,7 +302,6 @@ class _ProfileForm extends StatefulWidget {
 class _ProfileFormState extends State<_ProfileForm> {
   late final FieldRegistry registry;
   late final FormController? controller;
-  bool saving = false;
 
   @override
   void initState() {
@@ -320,14 +335,11 @@ class _ProfileFormState extends State<_ProfileForm> {
   }
 
   Future<void> save() async {
-    final payload = controller!.submit();
-    if (payload == null) return;
-
-    setState(() => saving = true);
-    await Future<void>.delayed(const Duration(seconds: 1)); // your API call
-    if (!mounted) return;
-    setState(() => saving = false);
-    await showPayload(context, payload);
+    try {
+      await controller!.submitTo(_fakeSave);
+    } on Exception {
+      // submitTo abandoned the send; the status line says so.
+    }
   }
 
   @override
@@ -346,7 +358,10 @@ class _ProfileFormState extends State<_ProfileForm> {
         'Highlight missing: the whole form, prefilled; a bar marks what is '
             'missing.',
         'Save: the payload has only the fields on screen; the fields are '
-            'disabled while saving.',
+            'disabled while sending.',
+        'Fake server: email taken@example.com is rejected on that field, '
+            'which gets focus; tax ID 00000000000 is a form error; full '
+            'name "Offline" fails to send.',
       ],
       header: widget.pickers,
       snapshot: controller,
@@ -355,17 +370,48 @@ class _ProfileFormState extends State<_ProfileForm> {
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Center(child: Text('Profile complete: nothing to ask.')),
             )
-          : FormView(
+          : FormStatusBuilder<bool>(
               controller: controller,
-              registry: registry,
-              localizer: _localizer,
-              enabled: !saving,
+              select: (s) => s.submitting,
+              // Fields are disabled while sending: the app's choice.
+              builder: (context, submitting) => FormView(
+                controller: controller,
+                registry: registry,
+                localizer: _localizer,
+                enabled: !submitting,
+              ),
             ),
       bottomBar: controller == null
           ? null
-          : FilledButton(
-              onPressed: saving ? null : save,
-              child: Text(saving ? 'Saving…' : 'Save'),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FormStatusBuilder<(SubmitOutcome?, ValidationError?)>(
+                  controller: controller,
+                  select: (s) => (s.lastSubmit, s.formError),
+                  builder: (context, v) => switch (v) {
+                    (_, final ValidationError error) => Text(
+                        _localizer(error, null),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
+                      ),
+                    (SubmitOutcome.accepted, _) => const Text('Saved'),
+                    (SubmitOutcome.abandoned, _) =>
+                      const Text('Could not send, try again'),
+                    _ => const SizedBox.shrink(),
+                  },
+                ),
+                const SizedBox(height: 8),
+                FormStatusBuilder<bool>(
+                  controller: controller,
+                  select: (s) => s.submitting,
+                  builder: (context, submitting) => FilledButton(
+                    onPressed: submitting ? null : save,
+                    child: Text(submitting ? 'Sending…' : 'Save'),
+                  ),
+                ),
+              ],
             ),
     );
   }

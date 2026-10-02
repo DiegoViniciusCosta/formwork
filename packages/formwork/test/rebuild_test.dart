@@ -424,6 +424,103 @@ void main() {
     });
   });
 
+  group('layout trees (0006 §5)', () {
+    final a = Probe('a');
+    final b = Probe('b');
+    final c = Probe('c', visibleWhen: eq('a', 'show'));
+    final d = Probe('d');
+    final root = LayoutNode('root', children: [
+      SectionNode(title: 'First', children: [a]),
+      SectionNode(title: 'Second', children: [
+        b,
+        RowNode(children: [c, d]),
+      ]),
+    ]);
+
+    /// Section and row builders counting builds by title, or type.
+    ({LayoutRegistry layouts, Map<String, int> builds}) countingLayouts() {
+      final builds = <String, int>{};
+      Widget counted(LayoutNode node, List<Widget> children) {
+        final name = (node['title'] as String?) ?? node.type;
+        builds.update(name, (n) => n + 1, ifAbsent: () => 1);
+        return Column(children: children);
+      }
+
+      return (
+        layouts: LayoutRegistry()
+          ..register('section', (_, node, children) => counted(node, children))
+          ..register('row', (_, node, children) => counted(node, children)),
+        builds: builds,
+      );
+    }
+
+    testWidgets('FormView: typing rebuilds no node; a flip only its chain',
+        (tester) async {
+      final probe = probeRegistry();
+      final nodes = countingLayouts();
+      final controller = FormController(_Laid([a, b, c, d], root));
+      await tester.pumpWidget(MaterialApp(
+        home: SingleChildScrollView(
+          child: FormView(
+            controller: controller,
+            registry: probe.registry,
+            layouts: nodes.layouts,
+          ),
+        ),
+      ));
+      nodes.builds.clear();
+      probe.builds.clear();
+
+      controller.change(b.path, 'typed');
+      await tester.pump();
+      expect(nodes.builds, isEmpty);
+      expect(probe.builds, {'b': 1});
+
+      probe.builds.clear();
+      controller.change(a.path, 'show'); // shows c, in Second > row
+      await tester.pump();
+      expect(nodes.builds, {'Second': 1, 'row': 1});
+      expect(probe.builds, {'a': 1, 'c': 1});
+    });
+
+    testWidgets('SnapshotFormView: typing rebuilds no node; a flip its chain',
+        (tester) async {
+      const engine = FormEngine();
+      final probe = probeRegistry();
+      final nodes = countingLayouts();
+      var snapshot = engine.registerAll(engine.initial(), [a, b, c, d]);
+      late StateSetter setOuter;
+      await tester.pumpWidget(MaterialApp(
+        home: StatefulBuilder(builder: (context, setState) {
+          setOuter = setState;
+          return SingleChildScrollView(
+            child: SnapshotFormView(
+              snapshot: snapshot,
+              onChanged: (path, value) => setState(
+                  () => snapshot = engine.change(snapshot, path, value)),
+              registry: probe.registry,
+              layout: root,
+              layouts: nodes.layouts,
+            ),
+          );
+        }),
+      ));
+      nodes.builds.clear();
+      probe.builds.clear();
+
+      setOuter(() => snapshot = engine.change(snapshot, b.path, 'x'));
+      await tester.pump();
+      expect(nodes.builds, isEmpty);
+      expect(probe.builds, {'b': 1});
+
+      probe.builds.clear();
+      setOuter(() => snapshot = engine.change(snapshot, a.path, 'show'));
+      await tester.pump();
+      expect(nodes.builds, {'Second': 1, 'row': 1});
+      expect(probe.builds, {'a': 1, 'c': 1});
+    });
+  });
+
   group('FieldView in a custom layout', () {
     late ({
       FieldRegistry registry,
@@ -611,4 +708,13 @@ void main() {
     await tester.pumpWidget(view());
     expect(probe.builds, {'f3': 1});
   });
+}
+
+class _Laid extends FormDef {
+  _Laid(super.fields, this.root);
+
+  final LayoutNode root;
+
+  @override
+  LayoutNode get layout => root;
 }

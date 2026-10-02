@@ -1,4 +1,4 @@
-/// Material Design field builders for formwork.
+/// Material Design field and layout builders for formwork.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,6 +9,34 @@ import 'package:formwork/formwork.dart';
 /// and `password`, and for `number`, `dropdown` and `checkbox`.
 FieldRegistry materialFieldRegistry() =>
     FieldRegistry()..registerAll(materialFieldBuilders);
+
+/// A layout registry with Material builders for `section` and `row`
+/// (design doc 0006 §5).
+LayoutRegistry materialLayoutRegistry() =>
+    LayoutRegistry()..registerAll(materialLayoutBuilders);
+
+/// The Material layout builders by node type: a `section` shows its
+/// `title` above its children, and a `row` shares its width between them.
+final Map<String, LayoutNodeBuilder> materialLayoutBuilders = {
+  'section': (context, node, children) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (node['title'] case final String title)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child:
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+            ),
+          ...children,
+        ],
+      ),
+  'row': (context, node, children) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 16,
+        children: [for (final child in children) Expanded(child: child)],
+      ),
+};
 
 /// The Material builders by field type, to register one by one or all at
 /// once.

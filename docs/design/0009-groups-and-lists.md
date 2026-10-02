@@ -239,7 +239,7 @@ FormSnapshot moveItem(FormSnapshot s, FieldPath item, int to);
 ## Open questions
 
 1. **`onlyMissing` and `missingKeys` with lists.** Implemented as
-   proposed, pending confirmation: a list is missing when its own rules
+   proposed, and approved on 2026-10-02: a list is missing when its own rules
    (`required`, `minItems`, `maxItems`) fail on the number of items in the
    data, and then it is asked as a whole; items are never asked one by
    one. Groups need nothing new: their fields are asked by path.

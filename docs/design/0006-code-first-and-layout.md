@@ -430,3 +430,59 @@ alone.
    widgets.
 5. **Where `localizer` and `enabled` live:** decided during the
    implementation, with code in hand.
+
+## §5, details settled for the implementation (approved 2026-10-02)
+
+§5 fixes the catalog format and the behaviour. These are the API shapes it
+left open, approved before the code.
+
+1. **The model, in `formwork_core`:**
+
+   ```dart
+   sealed class LayoutChild {}
+   final class LayoutField extends LayoutChild { final FieldPath path; }
+   class LayoutNode extends LayoutChild {
+     LayoutNode(String type, {List<Object> children, Map<String, Object?> props});
+     final String type;
+     final List<LayoutChild> children;
+     Object? operator [](String key);   // props, as node['title']
+   }
+   final class SectionNode extends LayoutNode { SectionNode({String? title, required List<Object> children}); }
+   final class RowNode extends LayoutNode { RowNode({required List<Object> children}); }
+   ```
+
+   - In code, `children` takes a `FieldDef`, a `FieldPath` or a
+     `LayoutNode`, so a class writes `SectionNode(children: [fullName,
+     RowNode(children: [income, maritalStatus])])`. Anything else throws
+     an `ArgumentError` when the node is built.
+   - **The root** is a `LayoutNode` of type `"root"`, whose children are
+     the catalog's `layout` list. `FormDef.layout` returns it, `null` by
+     default. It renders as a column unless a `"root"` builder is
+     registered.
+2. **Where each tolerance case is reported.**
+   - Parse time, in `FormCatalog.layoutIssues` (a list of `LayoutIssue`,
+     with a `LayoutIssueKind` and a location such as `layout[0].children[1]`,
+     since a node has no path): malformed node, key repeated, key not in
+     the catalog. `CatalogIssue` stays about fields: its `path` is
+     required, and a node has none.
+   - Render time: an unknown node type is reported in debug builds
+     (`FlutterError.reportError`, as the other debug checks), because only
+     the widgets know which builders exist. A layout built in code is not
+     checked at parse time: at render, a key not in the form is skipped and
+     a repeated key renders at its first place, both silently.
+3. **Lists and groups in a layout.** A group path places its fields in
+   registration order (§5). A list path places the list and then its item
+   fields, in item order, as `FormView` does without a layout.
+4. **Getting the layout to the views.** `FormController` keeps
+   `form.layout` as `controller.layout`. `SnapshotFormView` takes a
+   `layout:` parameter, since a snapshot holds fields, not presentation.
+5. **`LayoutRegistry`**, in `formwork`:
+   `register(type, (context, node, children) => Widget)`. The children it
+   receives are the visible ones, already built. `FormView` and
+   `SnapshotFormView` take `layouts:`; without it, every node renders as
+   a column.
+6. **Rebuilds.** Each node's widget is kept while its visible fields stay
+   the same, so a visibility flip rebuilds only the enclosing nodes, and
+   typing rebuilds no node in either view. In `SnapshotFormView`, field
+   states reach each field through an `InheritedModel` keyed by path, so
+   a node does not need to rebuild to pass a new state down.

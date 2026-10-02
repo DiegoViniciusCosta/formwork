@@ -5,7 +5,9 @@ import '../engine/field_def.dart';
 import '../engine/field_defs.dart';
 import '../engine/field_path.dart';
 import '../engine/form_def.dart';
+import '../engine/layout_node.dart';
 import '../engine/list_field_def.dart';
+import 'catalog_layout.dart';
 import 'condition_registry.dart';
 import 'validator_registry.dart';
 
@@ -187,9 +189,27 @@ final class FieldJson {
 /// [FormDef] like any other for the engine, which also lists what the
 /// tolerance rule skipped in [issues].
 final class FormCatalog extends FormDef {
-  FormCatalog._(super.fields, this.issues, this.schemaVersion);
+  FormCatalog._(
+    super.fields,
+    this.issues,
+    this.schemaVersion,
+    this._layout,
+    this.layoutIssues,
+  );
 
-  /// Reads [json]: `{"schemaVersion": 1, "fields": [...]}`.
+  final LayoutNode? _layout;
+
+  /// The catalog's `layout`, read into a tree whose root has the type
+  /// `root` (design doc 0006 §5); `null` when it has none.
+  @override
+  LayoutNode? get layout => _layout;
+
+  /// What the tolerance rule skipped in the `layout`, in order.
+  final List<LayoutIssue> layoutIssues;
+
+  /// Reads [json]: `{"schemaVersion": 1, "fields": [...], "layout": [...]}`,
+  /// `layout` being optional (design doc 0006 §5). What the tolerance rule
+  /// skips in it is listed in [layoutIssues].
   ///
   /// Condition operands are decoded through the codec of the field they
   /// read, so `{"eq": ["maritalStatus", "married"]}` equals
@@ -237,6 +257,8 @@ FormCatalog narrowCatalog(FormCatalog catalog, Set<FieldPath> keep) =>
       ],
       catalog.issues,
       catalog.schemaVersion,
+      catalog.layout,
+      catalog.layoutIssues,
     );
 
 /// One [FormCatalog.fromJson] call.
@@ -305,6 +327,11 @@ final class _Reader {
       probes[FieldPath(key)] = factory(_field(entry, probe: true));
     }
 
+    final (layout, layoutIssues) = readLayout(json['layout'], {
+      for (final entry in entries) FieldPath(entry['key']! as String),
+      ...groupPaths,
+    });
+
     var built = _build(entries, known);
     if (built.skipped.isNotEmpty) {
       // Operands on a skipped field's path must be read as JSON, so build
@@ -323,6 +350,8 @@ final class _Reader {
         ],
       ]),
       schemaVersion,
+      layout,
+      List.unmodifiable(layoutIssues),
     );
   }
 

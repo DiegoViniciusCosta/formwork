@@ -72,4 +72,39 @@ void main() {
     await tester.pump();
     expect(controller.submit(), {'terms': true});
   });
+
+  testWidgets('section and row builders lay out the fields', (tester) async {
+    final a = TextFieldDef('a', label: 'A');
+    final b = TextFieldDef('b', label: 'B');
+    final c = TextFieldDef('c', label: 'C');
+    final controller = FormController(_Laid([a, b, c]));
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: FormView(
+          controller: controller,
+          registry: materialFieldRegistry(),
+          layouts: materialLayoutRegistry(),
+        ),
+      ),
+    ));
+    expect(find.text('Personal'), findsOneWidget);
+    expect(find.byType(Row), findsWidgets);
+    final dy = [
+      for (final l in ['A', 'B', 'C']) tester.getTopLeft(find.text(l)).dy
+    ];
+    expect(dy[1], dy[2]); // b and c share a row
+    expect(dy[0], lessThan(dy[1]));
+  });
+}
+
+class _Laid extends FormDef {
+  _Laid(super.fields);
+
+  @override
+  late final LayoutNode layout = LayoutNode('root', children: [
+    SectionNode(title: 'Personal', children: [
+      FieldPath('a'),
+      RowNode(children: [FieldPath('b'), FieldPath('c')]),
+    ]),
+  ]);
 }

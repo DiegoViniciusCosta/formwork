@@ -25,7 +25,8 @@ class FormController extends ChangeNotifier
     FormDef form, {
     Map<String, Object?> initialValues = const {},
     this.engine = const FormEngine(),
-  }) : _snapshot = engine.registerAll(
+  })  : layout = form.layout,
+        _snapshot = engine.registerAll(
           engine.initial(initialValues: initialValues),
           form.fields,
         ) {
@@ -34,6 +35,10 @@ class FormController extends ChangeNotifier
 
   /// The rules this controller applies.
   final FormEngine engine;
+
+  /// How [FormView] arranges the fields: the form's layout, `null` for a
+  /// column (design doc 0006 §5).
+  final LayoutNode? layout;
 
   /// The focus of this form's fields, used by default by the field views
   /// below a `FormScope` of this controller.

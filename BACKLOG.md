@@ -16,8 +16,8 @@ fundação já suporte, no futuro, formulários feitos de widgets
 ("everything is a widget"). Os itens 4 e 5 saem numa única versão com
 quebra limpa (a 0.1 não foi publicada).
 
-### 4. 🟨 Implementar a fundação (0001, 0002, 0004, 0006, 0007 e 0008)
-Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
+### 4. ✅ Implementar a fundação (0001, 0002, 0004, 0006, 0007, 0008 e 0009)
+Feito (2026-09-28 a 2026-10-02), com as decisões 1 a 29 registradas no fim do 0001:
 - 0001 passos 1 a 5: tipos, `Condition`, grafo de dependências, engine
   incremental com registro em tempo de execução (HAMT por caminho),
   `FieldDef<T>`, validadores tipados, codecs, `FormCatalog.fromJson` com
@@ -40,11 +40,10 @@ Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
 - 0001 passo 6, listas (design doc 0009 §3 a §5, 2026-10-02):
   `ListFieldDef` com `itemFields` como função, `addItem`/`removeItem`/
   `moveItem`, ids estáveis, erros do servidor por índice;
+- 0006 §5 (2026-10-02, detalhes aprovados no fim do 0006): `layout` no
+  catálogo, `LayoutNode`/`SectionNode`/`RowNode`, `LayoutRegistry` e os
+  builders Material de `section` e `row`;
 - teste de "trabalho por mudança".
-
-Falta:
-- **0006 §5:** o layout vindo do servidor (seções e linhas) e o
-  `LayoutRegistry`.
 
 ### 5. ✅ Aplicar os nomes do 0004 na mesma versão
 Feito junto com o item 4, inclusive os builders do `formwork_material` e

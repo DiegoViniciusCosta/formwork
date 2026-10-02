@@ -108,9 +108,39 @@ const _catalogJson = <String, dynamic>{
       'required': true,
     },
   ],
+  // Keys removed by onlyMissing are skipped silently.
+  'layout': [
+    {
+      'type': 'section',
+      'title': 'Who you are',
+      'children': [
+        'fullName',
+        {
+          'type': 'row',
+          'children': ['email', 'taxId'],
+        },
+        'nickname',
+      ],
+    },
+    {
+      'type': 'section',
+      'title': 'Your situation',
+      'children': [
+        'monthlyIncome',
+        'maritalStatus',
+        'spouseName',
+        'hasVehicle',
+        'vehicleType',
+        'licensePlate',
+      ],
+    },
+    'acceptedTerms',
+  ],
 };
 
 /// What the backend already knows, for a few kinds of user.
+final _layouts = materialLayoutRegistry();
+
 const _presets = <String, Map<String, Object?>>{
   'New user': {},
   'Married, no income': {
@@ -377,6 +407,7 @@ class _ProfileFormState extends State<_ProfileForm> {
               builder: (context, submitting) => FormView(
                 controller: controller,
                 registry: registry,
+                layouts: _layouts,
                 localizer: _localizer,
                 enabled: !submitting,
               ),

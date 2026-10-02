@@ -217,6 +217,26 @@ In code: `ListFieldDef('dependents', itemFields: (item) =>
 widget: register a `"list"` builder that shows the add and remove
 buttons; `FormView` places each item's fields right after it.
 
+A catalog may carry a `layout` next to `fields`: sections and rows that
+arrange the fields, and never touch the payload. Children are keys (a
+group's key places all its fields) or nodes:
+
+```json
+"layout": [
+  { "type": "section", "title": "Personal data", "children": [
+      "fullName",
+      { "type": "row", "children": ["income", "maritalStatus"] } ] },
+  "spouseName"
+]
+```
+
+`FormView(layouts: materialLayoutRegistry())` renders it with
+`formwork_material`; any other node type is yours to register in a
+`LayoutRegistry`, and renders as a column until you do. A field the
+layout does not place renders at the end, and what the reader skipped is
+in `catalog.layoutIssues`. In code, override `FormDef.layout` with
+`SectionNode` and `RowNode`.
+
 Built-in validators: `required`, `minLength`, `maxLength`, `pattern`,
 `email`, `min`, `max` and `matches` (`{"type": "matches", "field":
 "password"}`). Validators return error codes, never text: an

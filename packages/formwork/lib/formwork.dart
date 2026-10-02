@@ -12,4 +12,5 @@ export 'src/flutter/form_focus.dart'
 export 'src/flutter/form_scope.dart';
 export 'src/flutter/form_status_builder.dart';
 export 'src/flutter/form_view.dart';
+export 'src/flutter/layout_registry.dart' hide layoutColumn;
 export 'src/flutter/text_controller_binding.dart';

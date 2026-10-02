@@ -18,6 +18,12 @@ const _sample = '''
     {"key": "company", "type": "text", "label": "Company name",
      "required": true, "visibleWhen": {"eq": ["kind", "company"]}},
     {"key": "photo", "type": "camera", "label": "Photo"}
+  ],
+  "layout": [
+    {"type": "section", "title": "Account", "children": [
+      {"type": "row", "children": ["email", "kind"]},
+      "company"
+    ]}
   ]
 }''';
 
@@ -33,6 +39,7 @@ class CatalogPlaygroundScenario extends StatefulWidget {
 
 class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
   final registry = materialFieldRegistry();
+  final layouts = materialLayoutRegistry();
   final source = TextEditingController(text: _sample);
 
   FormController? controller;
@@ -58,6 +65,9 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
         warnings = [
           for (final issue in catalog.issues)
             'Skipped (${issue.kind.name}) in ${issue.path}: ${issue.detail}',
+          for (final issue in catalog.layoutIssues)
+            'Layout (${issue.kind.name}) at ${issue.location}: '
+                '${issue.detail}',
         ];
       });
     } on Object catch (e) {
@@ -123,6 +133,7 @@ class _CatalogPlaygroundScenarioState extends State<CatalogPlaygroundScenario> {
               key: ObjectKey(controller),
               controller: controller,
               registry: registry,
+              layouts: layouts,
             ),
       bottomBar: controller == null
           ? null

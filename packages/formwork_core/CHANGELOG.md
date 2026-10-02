@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Layout (design doc 0006 §5): `LayoutNode`, `SectionNode`, `RowNode`
+  and `LayoutField`, and `FormDef.layout`, `null` by default.
+  `FormCatalog.fromJson` reads an optional `layout`, and lists what it
+  skips in `layoutIssues` (`LayoutIssue`, `LayoutIssueKind`).
 - Lists (design doc 0009 §3 and §4): `ListFieldDef(key, itemFields:
   (item) => [...])`, whose value is its item ids, with `minItems`,
   `maxItems` and `required` errors. `FormEngine.addItem`, `removeItem`

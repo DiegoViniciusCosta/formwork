@@ -1,5 +1,11 @@
 ## Unreleased
 
+- Layout (design doc 0006 §5): `FormView` renders the form's layout
+  (`controller.layout`), and `SnapshotFormView` the one it gets as
+  `layout:`, with a `LayoutRegistry` of node builders (`layouts:`).
+  Typing rebuilds no layout node; a visibility flip rebuilds only the
+  nodes around it. A node without a builder renders as a column, and is
+  reported in debug builds.
 - Lists: `FormController.addItem`, `removeItem` and `moveItem`.
   `FormView` places a list's item fields right after it, in item order.
   formwork ships no `"list"` builder: register your own (design doc 0009

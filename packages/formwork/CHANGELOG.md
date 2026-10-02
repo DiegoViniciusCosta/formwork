@@ -1,5 +1,7 @@
 ## Unreleased
 
+- README: opens with what formwork is for, says when not to use it, and
+  how far backend validation goes.
 - Layout (design doc 0006 §5): `FormView` renders the form's layout
   (`controller.layout`), and `SnapshotFormView` the one it gets as
   `layout:`, with a `LayoutRegistry` of node builders (`layouts:`).

@@ -53,7 +53,13 @@ Feito junto com o item 4, inclusive os builders do `formwork_material` e
 
 ## Próximo
 
-### 6. ⬜ Reposicionar o README
+### 6. ✅ Reposicionar o README
+Feito em 2026-10-02: o README abre com o posicionamento, as garantias de
+qualidade (rebuilds, equivalência, erros sem corrida) viraram uma seção
+própria, há "When not to use formwork" e "Validating on the backend". As
+afirmações sobre concorrentes foram conferidas no pub.dev nessa data
+(`flutter_form_builder` 11.0.0, `reactive_forms` 18.2.2).
+
 O diferencial real não são os rebuilds (o `reactive_forms` e o
 `flutter_form_builder` já reconstroem por campo). É a combinação:
 - formulários definidos pelo servidor;
@@ -108,6 +114,14 @@ deixa de precisar escrever JSON.
 - O custo a pesar na hora: todo tipo de campo customizado passa a precisar
   saber se converter para JSON.
 - Precisa de um design doc próprio antes de começar.
+
+### Validação assíncrona
+Validadores que consultam o servidor enquanto o usuário digita ("este
+nome de usuário já existe?"). O README diz que ainda não existe, e o
+`reactive_forms` tem. A fundação já reservou o lugar: `FieldState.validating`,
+`FormStatus.validating`, `ErrorSource.async` e o descarte de resultados por
+geração do 0007 §6. Precisa de um design doc próprio (debounce, cancelamento,
+quando o submit espera).
 
 ### Regras que leem um grupo ou uma lista inteira
 Hoje uma regra só lê campos (decisão 29 do 0001). Casos que isso deixa de

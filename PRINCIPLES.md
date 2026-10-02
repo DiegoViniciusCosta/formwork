@@ -63,9 +63,11 @@ the size of the form.
 - Hardcoded message text inside validators.
 
 **Verified by.**
-- Enforced: incremental-versus-full equivalence test over a fixed sequence.
-- Planned: property test over random change sequences, race tests with
-  `fakeAsync`, minimum coverage threshold for `formwork_core`.
+- Enforced: incremental-versus-full equivalence tests over seeded random
+  sequences of changes, registrations, server answers and list
+  operations; race tests for server answers that arrive after a change.
+- Planned: race tests with `fakeAsync` once async validation exists,
+  minimum coverage threshold for `formwork_core`.
 
 ## The feature filter
 

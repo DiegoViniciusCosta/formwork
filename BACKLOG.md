@@ -37,9 +37,8 @@ Feito (2026-09-28), com as decisões 1 a 26 registradas no fim do 0001:
 - teste de "trabalho por mudança".
 
 Falta:
-- **0001 passo 6:** `group` e `list` no engine. Antes, decidir se uma
-  condição que lê um grupo (`address`) é avisada quando muda um campo
-  dentro dele (`address.zipCode`); os docs não dizem.
+- **0001 passo 6:** `group` e `list` no engine. Regras leem só campos,
+  nunca um grupo ou uma lista inteira (decisão 29 do 0001, 2026-10-02).
 - **0006 §5:** o layout vindo do servidor (seções e linhas) e o
   `LayoutRegistry`.
 
@@ -106,6 +105,27 @@ deixa de precisar escrever JSON.
 - O custo a pesar na hora: todo tipo de campo customizado passa a precisar
   saber se converter para JSON.
 - Precisa de um design doc próprio antes de começar.
+
+### Regras que leem um grupo ou uma lista inteira
+Hoje uma regra só lê campos (decisão 29 do 0001). Casos que isso deixa de
+fora: "mostrar 'plano família' se `dependents` tem algum item", "exigir
+CPF do responsável se algum dependente tem menos de 18 anos", "mostrar
+observações quando o endereço estiver completo".
+
+Como fazer (a opção A discutida em 2026-10-02):
+- **Quando reavaliar:** uma mudança em `address.zipCode` também avisa
+  quem lê `address` (os ancestrais do caminho). O custo cresce com a
+  profundidade do caminho, não com o tamanho do formulário. Reavaliar sem
+  mudar a resposta não reconstrói nada.
+- **O que a regra responde:** "ler um grupo" é ambíguo ("completo" ou
+  "algum campo preenchido"?). Usar operadores explícitos, por exemplo
+  `complete('address')` e `not(empty('address'))`, ou `count`/`any` para
+  listas. Nomes a decidir.
+- **O caso espelhado:** o app troca o grupo inteiro de uma vez
+  (`change('address', {...})`); quem lê `address.zipCode` precisa ser
+  avisado.
+
+Liberar não quebra ninguém. Precisa de um design doc próprio.
 
 ### Aviso para `completeSubmit` sem envio em andamento
 Quem usa o engine direto (Bloc, Riverpod) e chama `completeSubmit` ou

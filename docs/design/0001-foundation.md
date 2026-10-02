@@ -404,3 +404,13 @@ the parts of 0008 it needs), step 5:
     value is the same, and the new validators' local error still wins.
 28. **`FormScopeData` carries a fifth reference,** `focus` (0008 §4),
     next to the four of decision 26.
+29. **Rules read fields, not groups or lists (step 6, decided
+    2026-10-02).** A condition or a cross-field validator may only read
+    the path of a field. Reading a `group` or `list` path (`address`,
+    `dependents`) is an error when the form registers in code, and is
+    skipped and reported by the catalog, under the tolerance rule. A
+    rule that needs a group writes it field by field:
+    `all([not(empty('address.street')), not(empty('address.zipCode'))])`.
+    Allowing it later breaks no one; BACKLOG.md records how (notifying
+    the readers of a path's ancestors, with explicit operators for what
+    a group read means).

@@ -24,9 +24,13 @@ String englishErrorLocalizer(ValidationError error, FieldDef<Object?>? field) {
     'min' => 'Must be at least ${params['min']}',
     'max' => 'Must be at most ${params['max']}',
     'matches' => 'Does not match',
+    'minItems' => 'Needs at least ${_items(params['min'])}',
+    'maxItems' => 'Allows at most ${_items(params['max'])}',
     _ => 'Invalid value',
   };
 }
+
+String _items(Object? count) => count == 1 ? '1 item' : '$count items';
 
 /// The text of [error] on [field]: the field's own message for the code
 /// when it has one, as a catalog's `message` sets, else [localizer]'s.

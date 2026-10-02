@@ -1,5 +1,6 @@
 import '../engine/field_def.dart';
 import '../engine/field_path.dart';
+import '../engine/list_field_def.dart';
 import '../engine/nested_json.dart';
 import 'form_catalog.dart';
 
@@ -16,7 +17,9 @@ extension MissingData on FormCatalog {
   /// `initialValues`, nested or flat) fails the field's own rules:
   /// - required and empty, or a value its codec cannot decode: missing;
   /// - filled but invalid, such as a malformed e-mail: missing;
-  /// - optional and empty, or disabled, whatever its value: not missing.
+  /// - optional and empty, or disabled, whatever its value: not missing;
+  /// - a list: missing when its count fails `required`, `minItems` or
+  ///   `maxItems`; its items are never asked one by one.
   ///
   /// A field with `visibleWhen` counts only when it is relevant: when a
   /// field its condition reads is also missing, the rule is resolved on
@@ -48,6 +51,13 @@ final class _MissingData {
       : data = flattenJson(data) {
     for (final def in catalog.fields) {
       byPath[def.path] = def;
+      if (def is ListFieldDef) {
+        // A list is judged by its count; its items are not asked one by
+        // one (design doc 0009).
+        final items = this.data[def.path];
+        values[def.path] = List.filled(items is List ? items.length : 0, '');
+        continue;
+      }
       final (value, ok) = decodeFieldValue(def, this.data[def.path]);
       values[def.path] = value;
       if (!ok) undecodable.add(def.path);
@@ -79,9 +89,11 @@ final class _MissingData {
     if (undecodable.contains(def.path)) return true;
     final required =
         def.required || (def.requiredWhen?.evaluate(valueOf) ?? false);
-    return validateField(def, values[def.path],
-            required: required, valueOf: valueOf) !=
-        null;
+    final value = values[def.path];
+    return validateField(def, value, required: required, valueOf: valueOf) !=
+            null ||
+        (def is ListFieldDef &&
+            itemCountError(def, (value! as List).length) != null);
   }
 
   /// Whether [def] would be shown to this user; `seen` stops a cycle among

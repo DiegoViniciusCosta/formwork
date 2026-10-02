@@ -366,6 +366,64 @@ void main() {
     });
   });
 
+  group('lists (0009)', () {
+    final list = ListFieldDef('l', itemFields: (item) => [Probe('$item.x')]);
+
+    Future<
+        ({
+          FormController controller,
+          Map<String, int> builds,
+        })> pumpList(WidgetTester tester, int items) async {
+      final probe = probeRegistry();
+      probe.registry.register('list', (context, field) {
+        probe.builds.update('l', (n) => n + 1, ifAbsent: () => 1);
+        return const SizedBox(height: 1);
+      });
+      final controller = await pumpForm(tester, [list], probe.registry);
+      for (var i = 0; i < items; i++) {
+        controller.addItem(list.path, values: {'x': 'v$i'});
+      }
+      await tester.pump();
+      probe.builds.clear();
+      return (controller: controller, builds: probe.builds);
+    }
+
+    String x(FormController c, int index) =>
+        '${list.fieldsAt(c.value.valueOf(list)![index]).single.path}';
+
+    testWidgets('adding an item builds the list and the new item only',
+        (tester) async {
+      final (:controller, :builds) = await pumpList(tester, 3);
+      controller.addItem(list.path, at: 1);
+      await tester.pump();
+      expect(builds, {'l': 1, x(controller, 1): 1});
+    });
+
+    testWidgets('removing an item rebuilds the list only', (tester) async {
+      final (:controller, :builds) = await pumpList(tester, 3);
+      controller
+          .removeItem(list.itemPath(controller.value.valueOf(list)!.first));
+      await tester.pump();
+      expect(builds, {'l': 1});
+    });
+
+    testWidgets('moving an item rebuilds the list only', (tester) async {
+      final (:controller, :builds) = await pumpList(tester, 3);
+      controller.moveItem(
+          list.itemPath(controller.value.valueOf(list)!.first), 2);
+      await tester.pump();
+      expect(builds, {'l': 1});
+    });
+
+    testWidgets('typing in an item rebuilds that item field only',
+        (tester) async {
+      final (:controller, :builds) = await pumpList(tester, 3);
+      controller.change(FieldPath(x(controller, 1)), 'typed');
+      await tester.pump();
+      expect(builds, {x(controller, 1): 1});
+    });
+  });
+
   group('FieldView in a custom layout', () {
     late ({
       FieldRegistry registry,

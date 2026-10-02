@@ -13,7 +13,9 @@ import 'form_scope.dart';
 /// screen.
 ///
 /// The column rebuilds only when a field is shown, hidden, registered or
-/// unregistered; each field rebuilds only when its own state changes.
+/// unregistered, or a list's items are added, removed or moved; each field
+/// rebuilds only when its own state changes. A list's item fields come
+/// right after it, in item order.
 class FormView extends StatefulWidget {
   /// A view of [controller]'s form.
   const FormView({

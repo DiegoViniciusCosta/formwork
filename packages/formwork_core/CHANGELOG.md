@@ -1,5 +1,17 @@
 ## Unreleased
 
+- Lists (design doc 0009 §3 and §4): `ListFieldDef(key, itemFields:
+  (item) => [...])`, whose value is its item ids, with `minItems`,
+  `maxItems` and `required` errors. `FormEngine.addItem`, `removeItem`
+  and `moveItem` keep every other item's state identical. The payload
+  and `initialValues` hold a list as an array of objects; a hidden list
+  hides its items; server errors by index (`dependents[0].name`) land on
+  the item that was there when the send started. The catalog reads
+  `{"type": "list", "itemFields": [...]}`, and `missingKeys` asks a list
+  as a whole, by its count. `englishErrorLocalizer` knows `minItems` and
+  `maxItems`. A rule that reads a list throws, as for a group. A
+  `ListFieldDef` compares by identity: registering a new one replaces
+  the old.
 - Groups (design doc 0009 §1 and §2): a dotted key (`address.zipCode`)
   is a field inside a group, and a catalog `group` entry expands into
   such fields. `payload()` and `submit` nest groups as JSON objects;
@@ -8,8 +20,8 @@
   when a key is both a field and a group, or when a rule reads a group
   (decision 29 of 0001); the catalog reports these as
   `CatalogIssueKind.readsGroup` and `ruleOnGroup`, or rejects the
-  catalog. Until lists ship, a key that addresses a list item
-  (`dependents[0].name`) throws too.
+  catalog. A key that addresses a list item (`dependents[0].name`)
+  throws too: only its list registers it.
 - Sending, as design doc 0008 §2 describes: `startSubmitting`,
   `completeSubmit` with `ServerErrors` (`isEmpty` when it carries no
   error), and `abandonSubmit`. Server errors apply with `source: server`

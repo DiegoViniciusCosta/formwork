@@ -76,6 +76,25 @@ class FormController extends ChangeNotifier
   void change(FieldPath path, Object? value) =>
       _moveTo(engine.change(_snapshot, path, value));
 
+  /// Adds an item to the list at [list], at the end or at index [at], its
+  /// fields filled from [values] (see [FormEngine.addItem]).
+  void addItem(
+    FieldPath list, {
+    Map<String, Object?> values = const {},
+    int? at,
+  }) =>
+      _moveTo(engine.addItem(_snapshot, list, values: values, at: at));
+
+  /// Removes the list item at [item], such as `ListFieldDef.itemPath(id)`
+  /// (see [FormEngine.removeItem]).
+  void removeItem(FieldPath item) =>
+      _moveTo(engine.removeItem(_snapshot, item));
+
+  /// Moves the list item at [item] to index [to] (see
+  /// [FormEngine.moveItem]).
+  void moveItem(FieldPath item, int to) =>
+      _moveTo(engine.moveItem(_snapshot, item, to));
+
   /// Marks a submit attempt, which shows every error, and returns the
   /// payload when the form is valid, else `null`. It sends nothing: see
   /// [submitTo] to send and record the answer in one call.

@@ -203,6 +203,20 @@ and the payload holds `{"address": {"zipCode": "..."}}`. Initial values
 take the same shape. Rules read fields, never a whole group:
 `{"empty": ["address.zipCode"]}`, not `{"empty": ["address"]}`.
 
+A `list` repeats its `itemFields`, with optional `minItems` and
+`maxItems`; the payload holds an array of objects:
+
+```json
+{ "key": "dependents", "type": "list", "minItems": 1, "maxItems": 3,
+  "itemFields": [ { "key": "name", "type": "text", "required": true } ] }
+```
+
+In code: `ListFieldDef('dependents', itemFields: (item) =>
+[TextFieldDef('$item.name', required: true)])`. Items change through
+`controller.addItem`, `removeItem` and `moveItem`. formwork ships no list
+widget: register a `"list"` builder that shows the add and remove
+buttons; `FormView` places each item's fields right after it.
+
 Built-in validators: `required`, `minLength`, `maxLength`, `pattern`,
 `email`, `min`, `max` and `matches` (`{"type": "matches", "field":
 "password"}`). Validators return error codes, never text: an

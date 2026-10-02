@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Lists: `FormController.addItem`, `removeItem` and `moveItem`.
+  `FormView` places a list's item fields right after it, in item order.
+  formwork ships no `"list"` builder: register your own (design doc 0009
+  §5).
 - Groups: the payload nests fields under their group (`{"address":
   {"zipCode": ...}}`), as `formwork_core` describes.
 - Sending and focus (design doc 0008): `controller.submitTo(send)`, where

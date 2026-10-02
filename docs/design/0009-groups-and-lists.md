@@ -1,6 +1,7 @@
 # 0009: Groups and lists in the engine
 
-Status: **accepted** (2026-10-02): groups ship first, lists after
+Status: **accepted** (2026-10-02): groups ship first, lists after.
+Amended 2026-10-02: item fields come from a function (§3, §5)
 
 ## Problem
 
@@ -91,7 +92,7 @@ FormDef([
 
 ```dart
 ListFieldDef('dependents',
-  itemFields: [TextFieldDef('name', required: true)],
+  itemFields: (item) => [TextFieldDef('$item.name', required: true)],
   minItems: 1,
   maxItems: 5,
 )
@@ -106,9 +107,24 @@ ListFieldDef('dependents',
   `"list"`. Its value is the ordered list of item ids. That makes the list
   an ordinary field for everything that already exists: `FieldState`,
   `FieldView`, a builder in the registry, `visibleWhen`, `required`.
+- **Item fields come from a function of the item's path** (amended
+  2026-10-02). A `FieldDef`'s path is fixed when it is built, and Dart
+  cannot copy an object of a type it does not know, so the engine cannot
+  move `TextFieldDef('name')` under `dependents[#3]`. It calls
+  `itemFields(dependents[#3])` instead, and registers what it returns.
+  Every returned path must be inside the item. `fieldsAt(id)` calls it
+  for one item, for a builder that places the item's fields itself. The
+  catalog's `"itemFields"` stays a JSON list: the catalog builds the
+  function.
 - **Its errors:** `required` means at least one item. `minItems` and
-  `maxItems` give errors with codes `minItems` and `maxItems` and a
-  `count` param. `errorCount`, `submit` and focus treat it like any field.
+  `maxItems` give errors with codes `minItems` (`{'min': n}`) and
+  `maxItems` (`{'max': n}`), checked on the item count even when the list
+  is empty. `errorCount`, `submit` and focus treat it like any field.
+- **Item fields follow their list:** a hidden list hides its items, and a
+  disabled list disables them. Unregistering a list unregisters its
+  items, which come back with it; removing an item forgets them.
+- **The value changes only through the operations of §4:** `change` on a
+  list throws an `ArgumentError`.
 - **Ids** come from a counter in the snapshot (`1`, `2`, ...), so the
   engine stays pure and tests are deterministic. An id is never reused in
   the same snapshot history.
@@ -150,8 +166,8 @@ FormSnapshot moveItem(FormSnapshot s, FieldPath item, int to);
 - formwork ships **no** `"list"` builder. The list UI (add and remove
   buttons, item cards, `$item` paths) is the later doc 0001 already
   announces. Until then an app registers its own `"list"` builder, which
-  receives the ids in `props.value` and places a `FieldView` per item
-  field (`def.path.item(id).child('name')`).
+  receives the ids in `props.value` and places a `FieldView` for each
+  definition `listDef.fieldsAt(id)` returns.
 - `FormView` renders item fields right after the list, in item order, as
   it renders any visible field. A form that wants them inside the list's
   builder uses a custom layout, as 0006 §4 allows.
@@ -168,6 +184,14 @@ FormSnapshot moveItem(FormSnapshot s, FieldPath item, int to);
   Cleaner in theory, but every consumer (`FieldView`, focus, status,
   registry, catalog) would need a second path. 0001 already sketched
   `ListFieldDef` inside `fields`. Lost.
+- **Item fields as definitions with a relative path**
+  (`itemFields: [TextFieldDef('name')]`, the first version of this doc).
+  The engine would have to copy each definition under the item's path:
+  either every `FieldDef`, custom ones included, implements a
+  `withPath` copy, or the absolute path moves from the definition to
+  `FieldState`, which touches everything that reads `def.path`. A wrapper
+  with another path breaks builders that check the concrete type
+  (`def is ChoiceFieldDef`). Lost on 2026-10-02.
 - **Random ids** (`k3f9`, as 0001's example). They need a random source,
   which breaks purity and deterministic tests. Counter ids are as stable.
   Lost.
@@ -214,9 +238,10 @@ FormSnapshot moveItem(FormSnapshot s, FieldPath item, int to);
 
 ## Open questions
 
-1. **`onlyMissing` and `missingKeys` with lists.** Proposed: a list is
-   missing when the data has no entry for it, and then it is asked as a
-   whole; items are never asked one by one. Groups need nothing new:
-   their fields are asked by path.
+1. **`onlyMissing` and `missingKeys` with lists.** Implemented as
+   proposed, pending confirmation: a list is missing when its own rules
+   (`required`, `minItems`, `maxItems`) fail on the number of items in the
+   data, and then it is asked as a whole; items are never asked one by
+   one. Groups need nothing new: their fields are asked by path.
 2. **Rules on a group** (`visibleWhen` on `address` hiding all its
    fields). Left out here: every field can carry the condition today.

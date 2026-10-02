@@ -5,6 +5,7 @@ import '../engine/field_def.dart';
 import '../engine/field_defs.dart';
 import '../engine/field_path.dart';
 import '../engine/form_def.dart';
+import '../engine/list_field_def.dart';
 import 'condition_registry.dart';
 import 'validator_registry.dart';
 
@@ -202,7 +203,9 @@ final class FormCatalog extends FormDef {
   ///
   /// Throws a [FormatException] when [json] is malformed, when two fields
   /// share a key, when a key is both a field and a group, or when a key
-  /// addresses a list item (lists come later, 0009 §3).
+  /// addresses a list item (only its list registers it, 0009 §3), or when
+  /// a list has a `minItems` or `maxItems` that is not a count or two of
+  /// its `itemFields` share a key.
   factory FormCatalog.fromJson(
     Map<String, Object?> json, {
     FieldTypeRegistry? types,
@@ -262,6 +265,9 @@ final class _Reader {
   /// Every path that holds fields: a strict ancestor of a field's path.
   final groupPaths = <FieldPath>{};
 
+  /// The paths of the lists.
+  final listPaths = <FieldPath>{};
+
   FormCatalog read(Map<String, Object?> json) {
     final entries = <Map<String, Object?>>[];
     _expand(json['fields'], null, entries);
@@ -283,6 +289,11 @@ final class _Reader {
         throw FormatException('A field needs a key and a type', entry);
       }
       if (!keys.add(key)) throw FormatException('Duplicate key "$key"', entry);
+      if (type == 'list') {
+        // Rules never read a list, so it needs no probe for operands.
+        known.add(i);
+        continue;
+      }
       final factory = types._factory(type);
       if (factory == null) {
         early[i] = [
@@ -327,11 +338,9 @@ final class _Reader {
     for (final i in known) {
       final entry = entries[i];
       final own = sink = <CatalogIssue>[];
-      final def = types._factory(entry['type']! as String)!(_field(entry));
+      final def = _def(entry);
       sink = null;
-      final group = {...def.conditionReads, ...def.validatorReads}
-          .where(groupPaths.contains)
-          .firstOrNull;
+      final group = _readGroup(def);
       if (group != null) {
         skipped.add(def.path);
         issues[i] = [
@@ -352,6 +361,97 @@ final class _Reader {
     return (fields: fields, issues: issues, skipped: skipped);
   }
 
+  /// The definition [entry] describes; its type is known.
+  FieldDef<Object?> _def(Map<String, Object?> entry) => entry['type'] == 'list'
+      ? _listDef(entry)
+      : types._factory(entry['type']! as String)!(_field(entry));
+
+  /// The group or list that [def]'s rules read as a whole, if any.
+  FieldPath? _readGroup(FieldDef<Object?> def) => {
+        ...def.conditionReads,
+        ...def.validatorReads,
+      }
+          .where((p) => groupPaths.contains(p) || listPaths.contains(p))
+          .firstOrNull;
+
+  /// A `list` entry (design doc 0009 §3). Its `itemFields` are read once
+  /// here, under the item path `key[0]`, to report their issues; each item
+  /// then builds them again under its own path, reporting nothing.
+  ListFieldDef _listDef(Map<String, Object?> entry) {
+    final f = _field(entry);
+    final probe = FieldPath(f.key).index(0);
+    final itemEntries = <Map<String, Object?>>[];
+    final itemGroupIssues = <int, List<CatalogIssue>>{};
+    _expand(entry['itemFields'], probe, itemEntries, itemGroupIssues);
+    final kept = <Map<String, Object?>>[];
+    final itemKeys = <Object?>{};
+    for (final item in itemEntries) {
+      if (!itemKeys.add(item['key'])) {
+        throw FormatException('Duplicate key "${item['key']}"', item);
+      }
+    }
+    for (var i = 0; i < itemEntries.length; i++) {
+      sink?.addAll(itemGroupIssues[i] ?? const []);
+      final item = itemEntries[i];
+      final type = item['type']! as String;
+      final path = FieldPath(item['key']! as String);
+      if (type != 'list' && types._factory(type) == null) {
+        sink?.add(CatalogIssue(CatalogIssueKind.unknownType, path, type));
+        continue;
+      }
+      if (_readGroup(_def(item)) case final group?) {
+        sink?.add(CatalogIssue(CatalogIssueKind.readsGroup, path, group));
+        continue;
+      }
+      kept.add(item);
+    }
+    sink?.addAll(itemGroupIssues[itemEntries.length] ?? const []);
+
+    final probeText = '$probe';
+    List<FieldDef<Object?>> itemFields(FieldPath at) {
+      final saved = sink;
+      sink = null;
+      try {
+        return [
+          for (final item in kept)
+            _def({
+              ...item,
+              'key':
+                  '$at${(item['key']! as String).substring(probeText.length)}',
+            }),
+        ];
+      } finally {
+        sink = saved;
+      }
+    }
+
+    return ListFieldDef(
+      f.key,
+      itemFields: itemFields,
+      minItems: _count(entry, 'minItems'),
+      maxItems: _count(entry, 'maxItems'),
+      label: f.label,
+      hint: f.hint,
+      required: f.required,
+      visibleWhen: f.visibleWhen,
+      enabledWhen: f.enabledWhen,
+      requiredWhen: f.requiredWhen,
+      extra: {
+        for (final e in f.extra.entries)
+          if (!const {'itemFields', 'minItems', 'maxItems'}.contains(e.key))
+            e.key: e.value,
+      },
+      messages: f.messages,
+    );
+  }
+
+  static int? _count(Map<String, Object?> entry, String name) =>
+      switch (entry[name]) {
+        null => null,
+        final int count when count >= 0 => count,
+        final other => throw FormatException('"$name" must be a count', other),
+      };
+
   static const _groupRules = [
     'required',
     'visibleWhen',
@@ -366,8 +466,10 @@ final class _Reader {
   void _expand(
     Object? json,
     FieldPath? prefix,
-    List<Map<String, Object?>> into,
-  ) {
+    List<Map<String, Object?>> into, [
+    Map<int, List<CatalogIssue>>? issues,
+  ]) {
+    final groupIssues = issues ?? this.groupIssues;
     for (final raw in _list(json, 'fields')) {
       final entry = switch (raw) {
         final Map<Object?, Object?> map => _object(map),
@@ -393,7 +495,7 @@ final class _Reader {
               .add(CatalogIssue(CatalogIssueKind.ruleOnGroup, path, rule));
         }
       }
-      _expand(entry['fields'], path, into);
+      _expand(entry['fields'], path, into, groupIssues);
     }
   }
 
@@ -402,9 +504,14 @@ final class _Reader {
     final fieldPaths = {
       for (final entry in entries) FieldPath(entry['key']! as String),
     };
+    for (final entry in entries) {
+      if (entry['type'] == 'list') {
+        listPaths.add(FieldPath(entry['key']! as String));
+      }
+    }
     for (final path in fieldPaths) {
       if (path.segments.any((s) => s is! KeySegment)) {
-        throw FormatException('"$path" is a list item; lists come later');
+        throw FormatException('"$path" is a list item: its list holds it');
       }
       for (var group = path.parent; group != null; group = group.parent) {
         if (fieldPaths.contains(group)) {

@@ -6,6 +6,7 @@ import 'scenarios/conditional_fields.dart';
 import 'scenarios/custom_field_types.dart';
 import 'scenarios/custom_validators.dart';
 import 'scenarios/external_state.dart';
+import 'scenarios/groups_and_lists.dart';
 import 'scenarios/profile_completion.dart';
 import 'scenarios/rebuild_inspector.dart';
 
@@ -42,6 +43,12 @@ final List<_Scenario> _scenarios = [
     subtitle: 'visibleWhen, shared controllers and chains',
     icon: Icons.account_tree,
     page: ConditionalFieldsScenario.new,
+  ),
+  (
+    title: 'Groups and lists',
+    subtitle: 'Nested payload; add, remove and move items',
+    icon: Icons.view_list,
+    page: GroupsAndListsScenario.new,
   ),
   (
     title: 'Custom validators',

@@ -6,6 +6,7 @@ import 'package:formwork_example/scenarios/conditional_fields.dart';
 import 'package:formwork_example/scenarios/custom_field_types.dart';
 import 'package:formwork_example/scenarios/custom_validators.dart';
 import 'package:formwork_example/scenarios/external_state.dart';
+import 'package:formwork_example/scenarios/groups_and_lists.dart';
 import 'package:formwork_example/scenarios/profile_completion.dart';
 import 'package:formwork_example/scenarios/rebuild_inspector.dart';
 
@@ -46,7 +47,7 @@ void main() {
         .widgetList<ListTile>(find.byType(ListTile))
         .map((tile) => (tile.title! as Text).data!)
         .toList();
-    expect(titles, hasLength(8));
+    expect(titles, hasLength(9));
 
     for (final title in titles) {
       await t.tap(find.text(title));
@@ -56,6 +57,29 @@ void main() {
       await t.pageBack();
       await t.pumpAndSettle();
     }
+  });
+
+  group('groups and lists', () {
+    testWidgets('adding past maxItems shows the error; removing all asks one',
+        (t) async {
+      await _open(t, const GroupsAndListsScenario());
+      expect(_field('Dependent name'), findsOneWidget);
+      for (var i = 0; i < 3; i++) {
+        await t.tap(find.text('Add dependent'));
+        await t.pump();
+      }
+      expect(_field('Dependent name'), findsNWidgets(4));
+      await t.tap(_submit('Submit'));
+      await t.pump();
+      expect(find.text('Allows at most 3 items'), findsOneWidget);
+
+      for (var i = 4; i > 0; i--) {
+        await t.tap(find.byTooltip('Remove dependent $i'));
+        await t.pump();
+      }
+      expect(_field('Dependent name'), findsNothing);
+      expect(find.text('Needs at least 1 item'), findsOneWidget);
+    });
   });
 
   group('profile completion', () {

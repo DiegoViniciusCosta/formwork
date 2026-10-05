@@ -3,8 +3,8 @@ description: >-
   The formwork form engine in pure Dart: field catalogs, validation and
   visibility, usable from Flutter apps and Dart backends alike.
 version: 0.1.0
-repository: https://github.com/<your-user>/formwork/tree/main/packages/formwork_core
-issue_tracker: https://github.com/<your-user>/formwork/issues
+repository: https://github.com/DiegoViniciusCosta/formwork/tree/main/packages/formwork_core
+issue_tracker: https://github.com/DiegoViniciusCosta/formwork/issues
 topics:
   - form
   - forms

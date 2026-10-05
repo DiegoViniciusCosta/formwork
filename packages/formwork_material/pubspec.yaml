@@ -1,8 +1,8 @@
 name: formwork_material
 description: Material Design field builders for formwork.
 version: 0.1.0
-repository: https://github.com/<your-user>/formwork/tree/main/packages/formwork_material
-issue_tracker: https://github.com/<your-user>/formwork/issues
+repository: https://github.com/DiegoViniciusCosta/formwork/tree/main/packages/formwork_material
+issue_tracker: https://github.com/DiegoViniciusCosta/formwork/issues
 topics:
   - form
   - forms

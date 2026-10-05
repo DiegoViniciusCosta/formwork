@@ -7,3 +7,7 @@ pubspec.lock
 *.iml
 .vscode/
 .claude/settings.local.json
+coverage/
+doc/api/
+*.log
+.DS_Store

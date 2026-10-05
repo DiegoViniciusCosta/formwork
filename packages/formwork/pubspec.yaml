@@ -3,8 +3,8 @@ description: >-
   Form library for Flutter: surgical per-field rebuilds, a serious
   validation engine, and any design system or state management.
 version: 0.1.0
-repository: https://github.com/<your-user>/formwork
-issue_tracker: https://github.com/<your-user>/formwork/issues
+repository: https://github.com/DiegoViniciusCosta/formwork/tree/main/packages/formwork
+issue_tracker: https://github.com/DiegoViniciusCosta/formwork/issues
 topics:
   - form
   - forms

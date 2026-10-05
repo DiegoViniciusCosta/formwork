@@ -2,47 +2,102 @@
 
 **Server-driven forms for Flutter, in your own design system.**
 
-formwork renders the forms your server describes in JSON (fields, rules,
-groups, lists and sections) with your own components, under any state
-management, and validates the same catalog in a Dart backend. Forms
-written as typed Dart classes go through the same engine.
+Change a form on your server and every installed app shows the new
+version, with no release. formwork renders it with your own components,
+rebuilds only the fields a change actually affects, and validates it with
+the same rules in your Dart backend.
+
+```json
+{
+  "fields": [
+    { "key": "fullName", "type": "text", "label": "Full name", "required": true },
+    { "key": "maritalStatus", "type": "dropdown", "label": "Marital status",
+      "options": [ { "value": "single", "label": "Single" },
+                   { "value": "married", "label": "Married" } ] },
+    { "key": "spouseName", "type": "text", "label": "Spouse name", "required": true,
+      "visibleWhen": { "eq": ["maritalStatus", "married"] } }
+  ]
+}
+```
+
+```dart
+final controller = FormController(FormCatalog.fromJson(json));
+
+FormView(controller: controller, registry: materialFieldRegistry());
+
+await controller.submitTo(api.updateProfile);
+```
+
+That is a complete form. The spouse field shows up only for married
+users. Required fields block the send, and focus jumps to the first error.
+The payload carries only the visible fields, and errors the server returns
+appear on their fields.
 
 ## Why formwork
 
-- **Forms defined by the server.** A JSON catalog carries the fields, their
-  conditions (`visibleWhen`, `requiredWhen`, `enabledWhen`), validators,
-  groups, repeatable lists and a layout of sections and rows. A catalog
-  newer than the app does not crash it: unknown field types, validators
-  and operators are skipped and reported, and an unknown layout node
-  renders its fields in a column.
-- **Any design system, any state management.** Field builders receive a
-  small contract, `FieldProps`, that any component can satisfy; formwork
-  ships no visual widgets, and a Material kit lives in
-  `formwork_material`. State is an immutable `FormSnapshot` from a
-  pure-Dart engine, so Bloc, Riverpod or a plain controller all work.
-- **Profile completion, built in.** Given what you already know about a
-  user, `missingKeys` says which answers are still missing, and
-  `onlyMissing` narrows the form to them, conditional chains included.
-- **One catalog, validated in the app and on the server.** The engine is
-  pure Dart, in its own package (`formwork_core`), so a Dart backend
-  validates the same catalog with the same rules. Other backends need
-  more work: see [Validating on the backend](#validating-on-the-backend).
+### Change forms without an app release
 
-### Guaranteed, and tested
+The server sends a JSON catalog: fields, conditions (`visibleWhen`,
+`requiredWhen`, `enabledWhen`), validators, groups, repeatable lists and
+a layout of sections and rows. A catalog newer than the app does not
+crash it: unknown field types, validators and operators are skipped and
+listed in `catalog.issues`, and an unknown layout node renders its fields
+in a column.
 
-- **Surgical rebuilds.** Typing in a field rebuilds that field only,
-  plus the fields and layout nodes whose visibility it flips. Rebuild
-  counts are part of the test suite.
-- **Incremental validation equals a full one.** Randomized tests check
-  that every change, including adding, removing and moving list items,
-  leaves the form exactly as validating it from scratch would.
-- **Race-free server errors.** An error the server returns for a field
-  the user changed during the send is discarded, not shown on the new
-  value.
-- **Errors are data.** Validators return codes and parameters; an
-  `ErrorLocalizer` of yours turns them into text.
+### Your design system, your state management
 
-## When not to use formwork
+formwork ships no visual widgets. A field builder receives `FieldProps`
+and returns any widget: your design system's input, a Material one from
+`formwork_material`, or both side by side. State is an immutable
+`FormSnapshot` from a pure-Dart engine, so Bloc, Riverpod and a plain
+controller all drive it the same way.
+
+### One keystroke, one rebuild
+
+Typing in a field rebuilds that field, plus only the fields whose state
+it changes: shown or hidden, required, enabled, or a cross-field error such
+as a password confirmation. In a 60-field form where nothing depends on
+the field being typed in, the other 59 stay as they are.
+This is not a benchmark claim: rebuild counts are asserted in the test
+suite, and CI checks them on every change.
+
+### Validation you can trust
+
+- **The same rules in the app and on the server.** The engine is pure
+  Dart (`formwork_core`), so a Dart backend validates the same catalog
+  with the same code.
+- **Incremental equals full.** Randomized tests check that every change,
+  including adding, removing and moving list items, leaves the form
+  exactly as validating it from scratch would.
+- **Server errors are first-class, and race-free.** An error for a field
+  the user changed while the request was in flight is discarded, not
+  shown on the new value.
+- **Errors are data.** Validators return codes and parameters; your
+  `ErrorLocalizer` turns them into text, in any language.
+
+### Ask users only what is missing
+
+Given what you already know about a user, `onlyMissing` narrows the form
+to the answers still missing, and keeps conditional chains intact.
+Profile completion and onboarding flows stop asking twice.
+
+### Typed forms in Dart, too
+
+Not every form comes from a server. A `FormDef` written in Dart runs
+through the same engine, with typed values and typed conditions:
+`min(1000)` on a text field does not compile.
+
+## Is formwork for you?
+
+**A good fit when:**
+
+- forms change more often than you ship the app, or differ by user,
+  tenant or country;
+- your app has its own design system;
+- forms are large enough that rebuilds and correct validation matter;
+- a Dart backend must accept exactly what the app accepts.
+
+**Probably not when:**
 
 - **You want many ready-made inputs and no builders to write.**
   `formwork_material` covers text, e-mail, password, number, dropdown
@@ -61,7 +116,31 @@ written as typed Dart classes go through the same engine.
 - **Your forms are few, small and written by hand.** Flutter's `Form`
   and `TextFormField` may be all you need.
 
-## Quick start
+## See it running
+
+The [example app](example/lib/main.dart) is a gallery of scenarios:
+profile completion, conditional fields, groups and lists, custom
+validators and field types, a rebuild inspector with a build counter on
+each of 60 fields, undo over external state, and a catalog playground
+where you edit JSON and see the form change live.
+
+```bash
+git clone https://github.com/DiegoViniciusCosta/formwork
+cd formwork/packages/formwork/example
+flutter run
+```
+
+## Install
+
+```yaml
+dependencies:
+  formwork: ^0.1.0
+  formwork_material: ^0.1.0 # optional: Material field builders
+```
+
+## Guide
+
+### Render and submit
 
 ```dart
 final registry = materialFieldRegistry(); // from formwork_material

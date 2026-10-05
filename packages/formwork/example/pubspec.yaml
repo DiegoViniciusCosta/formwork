@@ -9,10 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_riverpod: ^3.3.2
   formwork:
     path: ../
   formwork_material:
     path: ../../formwork_material
+  shadcn_ui: ^0.53.6
 
 dev_dependencies:
   flutter_test:

@@ -1,22 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme;
 
 import 'scenarios/all_field_types.dart';
 import 'scenarios/catalog_playground.dart';
 import 'scenarios/conditional_fields.dart';
+import 'scenarios/cubit_form.dart';
 import 'scenarios/custom_field_types.dart';
 import 'scenarios/custom_validators.dart';
 import 'scenarios/external_state.dart';
 import 'scenarios/groups_and_lists.dart';
 import 'scenarios/profile_completion.dart';
 import 'scenarios/rebuild_inspector.dart';
+import 'scenarios/riverpod_form.dart';
+import 'scenarios/shadcn_form.dart';
 
-void main() => runApp(
-      MaterialApp(
-        title: 'formwork examples',
-        theme: ThemeData(colorSchemeSeed: Colors.indigo),
-        home: const ScenarioGallery(),
+void main() {
+  // Built before runApp, as an app would at its root: in debug web builds,
+  // building it deep in the widget tree overflows the stack while
+  // shadcn_ui's libraries load.
+  final shadTheme = shadcnTheme();
+  runApp(
+    // For the Riverpod and shadcn_ui scenarios.
+    ProviderScope(
+      child: ShadTheme(
+        data: shadTheme,
+        child: MaterialApp(
+          title: 'formwork examples',
+          theme: ThemeData(colorSchemeSeed: Colors.indigo),
+          home: const ScenarioGallery(),
+        ),
       ),
-    );
+    ),
+  );
+}
 
 typedef _Scenario = ({
   String title,
@@ -73,6 +90,24 @@ final List<_Scenario> _scenarios = [
     subtitle: 'No controller: immutable snapshot history',
     icon: Icons.history,
     page: ExternalStateScenario.new,
+  ),
+  (
+    title: 'Cubit (flutter_bloc)',
+    subtitle: 'A BlocSelector per field; server errors',
+    icon: Icons.view_stream,
+    page: CubitScenario.new,
+  ),
+  (
+    title: 'Riverpod',
+    subtitle: 'A select per field; server errors',
+    icon: Icons.water_drop,
+    page: RiverpodScenario.new,
+  ),
+  (
+    title: 'Your design system (shadcn_ui)',
+    subtitle: 'The same form with another component library',
+    icon: Icons.palette,
+    page: ShadcnScenario.new,
   ),
   (
     title: 'Catalog playground',

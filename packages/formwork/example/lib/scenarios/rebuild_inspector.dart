@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:formwork/formwork.dart';
 import 'package:formwork_material/formwork_material.dart';
 
+import '../shared/build_counts.dart';
 import '../shared/scenario_page.dart';
 
 const _fieldCount = 60;
@@ -35,54 +36,6 @@ Map<String, dynamic> _bigCatalog() => {
       ],
     };
 
-/// Counts how many times each field's builder runs.
-class _BuildCounts {
-  final counts = <String, int>{};
-
-  int hit(String key) => counts[key] = (counts[key] ?? 0) + 1;
-
-  int get total => counts.values.fold(0, (a, b) => a + b);
-}
-
-/// Wraps every builder of [inner] with a badge showing its build count.
-FieldRegistry _countingRegistry(
-  Map<String, FieldBuilder> inner,
-  _BuildCounts counts,
-) =>
-    FieldRegistry()
-      ..registerAll({
-        for (final MapEntry(key: type, value: build) in inner.entries)
-          type: (context, field) => Row(
-                children: [
-                  Expanded(child: build(context, field)),
-                  const SizedBox(width: 8),
-                  _Badge(counts.hit(field.def.path.toString())),
-                ],
-              ),
-      });
-
-class _Badge extends StatelessWidget {
-  const _Badge(this.count);
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hot = count > 1;
-    return Container(
-      width: 36,
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: hot ? scheme.tertiaryContainer : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text('$count', style: const TextStyle(fontSize: 12)),
-    );
-  }
-}
-
 /// Makes principle 2 visible: typing in one field rebuilds only that field.
 class RebuildInspectorScenario extends StatefulWidget {
   const RebuildInspectorScenario({super.key});
@@ -93,8 +46,8 @@ class RebuildInspectorScenario extends StatefulWidget {
 }
 
 class _RebuildInspectorScenarioState extends State<RebuildInspectorScenario> {
-  final counts = _BuildCounts();
-  late final registry = _countingRegistry(materialFieldBuilders, counts);
+  final counts = BuildCounts();
+  late final registry = countingRegistry(materialFieldBuilders, counts);
   late final controller = FormController(FormCatalog.fromJson(_bigCatalog()));
   bool enabled = true;
 
@@ -125,7 +78,7 @@ class _RebuildInspectorScenarioState extends State<RebuildInspectorScenario> {
         ],
         header: ValueListenableBuilder<FormSnapshot>(
           valueListenable: controller,
-          builder: (context, _, __) => _TotalBuilds(counts),
+          builder: (context, _, __) => TotalBuilds(counts),
         ),
         form: FormView(
           controller: controller,
@@ -136,45 +89,5 @@ class _RebuildInspectorScenarioState extends State<RebuildInspectorScenario> {
           controller: controller,
           onValid: (payload) => showPayload(context, payload),
         ),
-      );
-}
-
-class _TotalBuilds extends StatefulWidget {
-  const _TotalBuilds(this.counts);
-
-  final _BuildCounts counts;
-
-  @override
-  State<_TotalBuilds> createState() => _TotalBuildsState();
-}
-
-class _TotalBuildsState extends State<_TotalBuilds> {
-  int total = 0;
-
-  @override
-  void didUpdateWidget(_TotalBuilds old) {
-    super.didUpdateWidget(old);
-    _refreshAfterFrame();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshAfterFrame();
-  }
-
-  // Field builders run later in the same frame than this widget, so the
-  // total is read once the frame is done.
-  void _refreshAfterFrame() =>
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && total != widget.counts.total) {
-          setState(() => total = widget.counts.total);
-        }
-      });
-
-  @override
-  Widget build(BuildContext context) => Text(
-        'Field builds so far: $total',
-        style: Theme.of(context).textTheme.titleMedium,
       );
 }

@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Example: Cubit and Riverpod scenarios, with a selector per field
+  feeding a `SnapshotFieldView`, a build counter, and server errors.
+- Example: the same sign-up form built with shadcn_ui components, to show
+  formwork under a design system it knows nothing about.
 - README: opens with what formwork is for, says when not to use it, and
   how far backend validation goes.
 - Layout (design doc 0006 §5): `FormView` renders the form's layout

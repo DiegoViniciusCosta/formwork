@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shadcn_ui/shadcn_ui.dart'
+    show ShadCheckbox, ShadInputDecorator, ShadTheme;
 import 'package:formwork_example/main.dart';
 import 'package:formwork_example/scenarios/all_field_types.dart';
 import 'package:formwork_example/scenarios/conditional_fields.dart';
+import 'package:formwork_example/scenarios/cubit_form.dart';
 import 'package:formwork_example/scenarios/custom_field_types.dart';
 import 'package:formwork_example/scenarios/custom_validators.dart';
 import 'package:formwork_example/scenarios/external_state.dart';
 import 'package:formwork_example/scenarios/groups_and_lists.dart';
 import 'package:formwork_example/scenarios/profile_completion.dart';
 import 'package:formwork_example/scenarios/rebuild_inspector.dart';
+import 'package:formwork_example/shared/build_counts.dart';
+import 'package:formwork_example/scenarios/riverpod_form.dart';
+import 'package:formwork_example/scenarios/shadcn_form.dart';
 
 Future<void> _open(WidgetTester t, Widget scenario) async {
   t.view.physicalSize = const Size(1080, 20000);
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
-  await t.pumpWidget(MaterialApp(home: scenario));
+  await t.pumpWidget(ProviderScope(
+    child: ShadTheme(
+      data: shadcnTheme(),
+      child: MaterialApp(home: scenario),
+    ),
+  ));
 }
 
 Finder _field(String label) => find.widgetWithText(TextField, label);
@@ -36,18 +48,41 @@ Future<void> _pick(WidgetTester t, String label, String option) async {
   await t.pumpAndSettle();
 }
 
+/// The total the build counter shows.
+int _totalBuilds(WidgetTester t) => int.parse(
+      RegExp(r'Field builds so far: (\d+)')
+          .firstMatch(t
+              .widgetList<Text>(find.byType(Text))
+              .map((w) => w.data ?? '')
+              .firstWhere((d) => d.startsWith('Field builds so far')))!
+          .group(1)!,
+    );
+
+/// The build count the badge next to the field [label] shows.
+int _badge(WidgetTester t, String label) => t
+    .widget<BuildBadge>(find.descendant(
+      of: find.ancestor(of: _field(label), matching: find.byType(Row)).first,
+      matching: find.byType(BuildBadge),
+    ))
+    .count;
+
 void main() {
   testWidgets('every scenario opens from the gallery', (t) async {
     t.view.physicalSize = const Size(1080, 2400);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(const MaterialApp(home: ScenarioGallery()));
+    await t.pumpWidget(ProviderScope(
+      child: ShadTheme(
+        data: shadcnTheme(),
+        child: const MaterialApp(home: ScenarioGallery()),
+      ),
+    ));
 
     final titles = t
         .widgetList<ListTile>(find.byType(ListTile))
         .map((tile) => (tile.title! as Text).data!)
         .toList();
-    expect(titles, hasLength(9));
+    expect(titles, hasLength(12));
 
     for (final title in titles) {
       await t.tap(find.text(title));
@@ -308,6 +343,150 @@ void main() {
       await t.pump();
 
       expect(titleText(t), 'Fix');
+    });
+  });
+
+  for (final (name, scenario) in [
+    ('cubit', const CubitScenario()),
+    ('riverpod', const RiverpodScenario()),
+  ]) {
+    group(name, () {
+      testWidgets('typing in one field rebuilds only that field', (t) async {
+        await _open(t, scenario);
+        await t.pumpAndSettle();
+        final before = _totalBuilds(t);
+
+        await t.enterText(_field('Email'), 'a');
+        await t.pumpAndSettle();
+
+        expect(_totalBuilds(t), before + 1);
+        expect(_badge(t, 'Email'), 2);
+      });
+
+      testWidgets('picking Company shows Company name, and rebuilds no other',
+          (t) async {
+        await _open(t, scenario);
+        await t.pumpAndSettle();
+        final before = _totalBuilds(t);
+        expect(_field('Company name'), findsNothing);
+
+        await _pick(t, 'Account type', 'Company');
+
+        expect(_field('Company name'), findsOneWidget);
+        // Account type changed, Company name appeared: nothing else.
+        expect(_totalBuilds(t), before + 2);
+      });
+
+      testWidgets('a field error from the server shows on its field, focused',
+          (t) async {
+        await _open(t, scenario);
+        await t.enterText(_field('Email'), 'taken@example.com');
+        await t.enterText(_field('Password'), 'secret123');
+        await t.enterText(_field('Confirm password'), 'secret123');
+        await _pick(t, 'Account type', 'Personal');
+        final email = t.widget<EditableText>(find.descendant(
+          of: _field('Email'),
+          matching: find.byType(EditableText),
+        ));
+        expect(email.focusNode.hasFocus, isFalse);
+
+        await t.tap(_submit('Create account'));
+        await t.pump();
+        expect(find.text('Sending…'), findsWidgets);
+
+        await t.pump(const Duration(seconds: 1));
+        await t.pumpAndSettle();
+        expect(find.text('Already used by another account'), findsOneWidget);
+        expect(find.text('The server rejected the form'), findsOneWidget);
+        expect(email.focusNode.hasFocus, isTrue);
+      });
+
+      testWidgets('an accepted send says so', (t) async {
+        await _open(t, scenario);
+        await t.enterText(_field('Email'), 'ada@example.com');
+        await t.enterText(_field('Password'), 'secret123');
+        await t.enterText(_field('Confirm password'), 'secret123');
+        await _pick(t, 'Account type', 'Personal');
+
+        await t.tap(_submit('Create account'));
+        await t.pump(const Duration(seconds: 1));
+        await t.pumpAndSettle();
+        expect(find.text('Account created'), findsWidgets);
+      });
+    });
+  }
+
+  group('your design system (shadcn_ui)', () {
+    Finder input(String label) => find.descendant(
+          of: find.ancestor(
+            of: find.text(label),
+            matching: find.byType(ShadInputDecorator),
+          ),
+          matching: find.byType(EditableText),
+        );
+
+    Future<void> select(WidgetTester t, String option) async {
+      await t.tap(find.text('Select…'));
+      await t.pumpAndSettle();
+      await t.tap(find.text(option).last);
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('submitting empty shows the errors in shadcn style', (t) async {
+      await _open(t, const ShadcnScenario());
+      await t.tap(find.text('Create account'));
+      await t.pumpAndSettle();
+      expect(
+        find.ancestor(
+          of: find.text('This field is required'),
+          matching: find.byType(ShadInputDecorator),
+        ),
+        findsNWidgets(4),
+      );
+    });
+
+    testWidgets('picking Company in the select shows Company name', (t) async {
+      await _open(t, const ShadcnScenario());
+      expect(find.text('Company name'), findsNothing);
+      await select(t, 'Company');
+      expect(find.text('Company name'), findsOneWidget);
+    });
+
+    testWidgets('every component follows values set from outside', (t) async {
+      await _open(t, const ShadcnScenario());
+      await t.tap(find.byTooltip('Fill sample'));
+      await t.pumpAndSettle();
+      expect(find.text('Company'), findsOneWidget);
+      expect(find.text('ada@example.com'), findsOneWidget);
+      expect(t.widget<ShadCheckbox>(find.byType(ShadCheckbox)).value, isTrue);
+
+      await t.tap(find.byTooltip('Clear'));
+      await t.pumpAndSettle();
+      expect(find.text('Select…'), findsOneWidget);
+      expect(find.text('Company name'), findsNothing);
+      expect(find.text('ada@example.com'), findsNothing);
+      expect(t.widget<ShadCheckbox>(find.byType(ShadCheckbox)).value, isFalse);
+    });
+
+    testWidgets('a field error from the server shows on its field, focused',
+        (t) async {
+      await _open(t, const ShadcnScenario());
+      await t.enterText(input('Email'), 'taken@example.com');
+      await t.enterText(input('Password'), 'secret123');
+      await t.enterText(input('Confirm password'), 'secret123');
+      await select(t, 'Personal');
+      await t.tap(find.text('Send me product news'));
+      await t.pump();
+      expect(t.widget<ShadCheckbox>(find.byType(ShadCheckbox)).value, isTrue);
+      final email = t.widget<EditableText>(input('Email'));
+      expect(email.focusNode.hasFocus, isFalse);
+
+      await t.tap(find.text('Create account'));
+      await t.pump(const Duration(seconds: 1));
+      await t.pumpAndSettle();
+
+      expect(find.text('Already used by another account'), findsOneWidget);
+      expect(email.focusNode.hasFocus, isTrue);
     });
   });
 }

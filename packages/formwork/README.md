@@ -362,7 +362,11 @@ validator's `message` overrides the text of its code on that field.
 
 ## State management adapters
 
-The engine is pure: it takes a snapshot and returns a new one.
+The engine is pure: it takes a snapshot and returns a new one. The
+example app runs both adapters below, with a build counter on each field
+and errors from a fake server:
+[Cubit](example/lib/scenarios/cubit_form.dart) and
+[Riverpod](example/lib/scenarios/riverpod_form.dart).
 
 ### Bloc / Cubit
 
